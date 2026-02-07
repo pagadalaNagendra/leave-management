@@ -220,23 +220,29 @@
   color: rgba(255, 255, 255, 0.8);
 }
 
-/* Logout Button */
 .btn-logout {
+  background: rgba(231, 76, 60, 0.9);
+  color: white;
+  border: none;
+  padding: 0.6rem 1.2rem;
+  border-radius: 6px;
+  cursor: pointer;
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  background-color: #1B65C0;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 0.9rem;
-  transition: background-color 0.3s;
+  font-weight: 500;
+  transition: all 0.3s;
 }
 
 .btn-logout:hover {
-  background-color: #154a8f;
+  background: rgba(192, 57, 43, 1);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.btn-logout svg {
+  width: 18px;
+  height: 18px;
 }
 
 /* Sidebar */
@@ -336,6 +342,7 @@
 .main-content {
   flex: 1;
   padding: 2rem;
+  padding-top: 85px;
   max-width: calc(100% - 70px);
   width: 100%;
   margin-left: 70px;

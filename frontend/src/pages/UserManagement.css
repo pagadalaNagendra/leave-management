@@ -90,7 +90,8 @@
 }
 
 .btn-primary:hover {
-  background-color: #154a8f;
+  background-color: #154d99;
+  opacity: 0.9;
 }
 
 .btn-secondary {
@@ -125,7 +126,7 @@
 }
 
 .btn-add-user:hover {
-  background: #154a8f;
+  background: #154d99;
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(27, 101, 192, 0.4);
 }
@@ -150,12 +151,12 @@
 }
 
 .btn-edit {
-  background-color: #3498db;
+  background-color: #1B65C0;
   color: white;
 }
 
 .btn-edit:hover {
-  background-color: #2980b9;
+  background-color: #154d99;
   transform: scale(1.1);
 }
 
