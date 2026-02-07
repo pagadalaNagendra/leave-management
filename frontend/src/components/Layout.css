@@ -7,17 +7,18 @@
 
 /* Top Navbar */
 .top-navbar {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  padding: 0.75rem 1.5rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  position: sticky;
+  position: fixed;
   top: 0;
-  z-index: 100;
+  left: 0;
+  right: 0;
   height: 65px;
+  background: #123462;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 2rem;
+  z-index: 100;
 }
 
 /* Navbar Left */
@@ -50,31 +51,32 @@
   transition: all 0.3s;
 }
 
+/* Logos */
 .logos {
   display: flex;
-  gap: 0.75rem;
+  gap: 1rem;
   align-items: center;
+  margin-left: 1rem;
 }
 
+.logo-img {
+  height: 40px;
+  width: auto;
+  object-fit: contain;
+}
+
+.logo-primary-img {
+  height: 50px;
+}
+
+.logo-secondary-img {
+  height: 40px;
+}
+
+/* Remove old logo styles */
 .logo-primary,
 .logo-secondary {
-  width: 45px;
-  height: 45px;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: bold;
-  font-size: 1.1rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-}
-
-.logo-primary {
-  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-}
-
-.logo-secondary {
-  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+  display: none;
 }
 
 /* Navbar Center */
@@ -84,8 +86,9 @@
 }
 
 .app-title {
-  font-size: 1.3rem;
+  font-size: 1.2rem;
   font-weight: 600;
+  color: white;
   margin: 0;
   letter-spacing: 0.5px;
 }
@@ -206,39 +209,34 @@
 }
 
 .profile-name {
+  display: block;
   font-weight: 600;
-  font-size: 0.9rem;
+  color: white;
 }
 
 .profile-role {
-  font-size: 0.75rem;
-  opacity: 0.9;
-  text-transform: capitalize;
+  display: block;
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.8);
 }
 
+/* Logout Button */
 .btn-logout {
-  background: rgba(231, 76, 60, 0.9);
-  color: white;
-  border: none;
-  padding: 0.6rem 1.2rem;
-  border-radius: 6px;
-  cursor: pointer;
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  font-weight: 500;
-  transition: all 0.3s;
+  padding: 0.5rem 1rem;
+  background-color: #1B65C0;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background-color 0.3s;
 }
 
 .btn-logout:hover {
-  background: rgba(192, 57, 43, 1);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-}
-
-.btn-logout svg {
-  width: 18px;
-  height: 18px;
+  background-color: #154a8f;
 }
 
 /* Sidebar */

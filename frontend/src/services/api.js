@@ -28,6 +28,7 @@ export const userAPI = {
 export const dashboardAPI = {
   getStats: () => api.get('/dashboard/stats'),
   getUserSummary: () => api.get('/dashboard/user-summary'),
+  getUserLeaveStats: () => api.get('/dashboard/user-leave-stats'),
 };
 
 export const leaveAPI = {

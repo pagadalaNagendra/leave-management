@@ -76,3 +76,94 @@
   font-weight: normal !important;
   margin-top: 0.25rem;
 }
+
+.user-leave-stats {
+  background: white;
+  padding: 2rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  margin-top: 2rem;
+}
+
+.user-leave-stats h2 {
+  margin-bottom: 1.5rem;
+  color: #2c3e50;
+}
+
+.stats-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.stats-table thead {
+  background-color: #f8f9fa;
+}
+
+.stats-table th {
+  padding: 1rem;
+  text-align: left;
+  font-weight: 600;
+  color: #2c3e50;
+  border-bottom: 2px solid #dee2e6;
+}
+
+.stats-table th:nth-child(2),
+.stats-table th:nth-child(3),
+.stats-table th:nth-child(4),
+.stats-table th:nth-child(5),
+.stats-table th:nth-child(6) {
+  text-align: center;
+}
+
+.stats-table td {
+  padding: 1rem;
+  border-bottom: 1px solid #ecf0f1;
+}
+
+.stats-table td:nth-child(2),
+.stats-table td:nth-child(3),
+.stats-table td:nth-child(4),
+.stats-table td:nth-child(5),
+.stats-table td:nth-child(6) {
+  text-align: center;
+}
+
+.stats-table tbody tr:hover {
+  background-color: #f8f9fa;
+}
+
+.user-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.user-info strong {
+  color: #2c3e50;
+  margin-bottom: 0.25rem;
+}
+
+.user-info small {
+  color: #7f8c8d;
+  font-size: 0.85rem;
+}
+
+.text-center {
+  text-align: center !important;
+}
+
+.badge {
+  padding: 0.35rem 0.65rem;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.badge-success {
+  background-color: #d4edda;
+  color: #155724;
+}
+
+.badge-warning {
+  background-color: #fff3cd;
+  color: #856404;
+}

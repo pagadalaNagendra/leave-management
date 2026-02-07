@@ -57,6 +57,16 @@ router.get('/user-summary', authenticate, async (req, res) => {
     `;
     const leavesResult = await pool.query(leavesQuery, [userId]);
     
+    // Pending leaves
+    const pendingLeavesQuery = `
+      SELECT COUNT(*) as pending_requests,
+             COALESCE(SUM(end_date - start_date + 1), 0) as pending_days
+      FROM leave_requests
+      WHERE user_id = $1 AND status = 'pending'
+      AND EXTRACT(YEAR FROM start_date) = EXTRACT(YEAR FROM CURRENT_DATE)
+    `;
+    const pendingResult = await pool.query(pendingLeavesQuery, [userId]);
+    
     // Total absences (days not marked present)
     const absenceQuery = `
       SELECT COUNT(*) as total_absences
@@ -78,9 +88,39 @@ router.get('/user-summary', authenticate, async (req, res) => {
     res.json({
       totalLeaves: parseInt(leavesResult.rows[0].total_leaves),
       totalLeaveDays: parseInt(leavesResult.rows[0].total_days),
+      pendingRequests: parseInt(pendingResult.rows[0].pending_requests),
+      pendingDays: parseInt(pendingResult.rows[0].pending_days),
       totalAbsences: parseInt(absenceResult.rows[0].total_absences),
       totalPresent: parseInt(presentResult.rows[0].total_present)
     });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// User-wise leave statistics for admin/sysadmin
+router.get('/user-leave-stats', authenticate, authorize('sysadmin', 'admin'), async (req, res) => {
+  try {
+    const query = `
+      SELECT 
+        u.id,
+        u.full_name,
+        u.email,
+        u.designation,
+        COUNT(DISTINCT lr.id) as total_requests,
+        COALESCE(SUM(CASE WHEN lr.status = 'approved' THEN (lr.end_date - lr.start_date + 1) ELSE 0 END), 0) as days_taken,
+        COALESCE(SUM(CASE WHEN lr.status = 'pending' THEN (lr.end_date - lr.start_date + 1) ELSE 0 END), 0) as days_pending
+      FROM users u
+      LEFT JOIN leave_requests lr ON u.id = lr.user_id 
+        AND EXTRACT(YEAR FROM lr.start_date) = EXTRACT(YEAR FROM CURRENT_DATE)
+      WHERE u.is_active = true
+      GROUP BY u.id, u.full_name, u.email, u.designation
+      ORDER BY days_taken DESC
+    `;
+    
+    const { rows } = await pool.query(query);
+    
+    res.json(rows);
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }

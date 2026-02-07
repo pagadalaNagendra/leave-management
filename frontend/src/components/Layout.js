@@ -34,8 +34,16 @@ const Layout = ({ children }) => {
                         <span></span>
                     </button>
                     <div className="logos">
-                        <div className="logo-primary">LM</div>
-                        <div className="logo-secondary">AS</div>
+                         <img
+                            src="https://ctop.iiit.ac.in/static/media/iiithlogo_white.41d3c101439124b07ef0.png"
+                            alt="IIIT Hyderabad Logo"
+                            className="logo-img logo-secondary-img"
+                        />
+                        <img
+                            src="https://ctop.iiit.ac.in/static/media/scrclogo.1d3166a27968c4078cbf.png"
+                            alt="SCRC Logo"
+                            className="logo-img logo-primary-img"
+                        />
                     </div>
                 </div>
 
