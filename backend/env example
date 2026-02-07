@@ -1,0 +1,25 @@
+PORT=5000
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=leave-management
+DB_USER=postgres
+DB_PASSWORD=postgres
+
+JWT_SECRET=your_super_secret_jwt_key_change_this
+JWT_EXPIRE=7d
+
+SYSADMIN_EMAIL=sysadmin@company.com
+SYSADMIN_PASSWORD=Admin@123
+SYSADMIN_USERNAME=sysadmin
+SYSADMIN_FULLNAME=System Administrator
+
+# Email Configuration
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=scrclab@gmail.com
+SMTP_PASS=igyu pqkb zljk bech
+APP_URL=http://localhost:3000
+BACKEND_URL=http://localhost:5000
+
+# Admin Notification Email
+ADMIN_EMAIL=nagendra.pagadala@research.iiit.ac.in
