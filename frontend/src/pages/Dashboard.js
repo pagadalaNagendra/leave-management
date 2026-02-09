@@ -44,13 +44,10 @@ const Dashboard = () => {
             <h3>Pending Requests</h3>
             <p className="stat-value">{stats.pendingRequests}</p>
           </div>
-          <div className="stat-card">
-            <h3>Today's Attendance</h3>
-            <p className="stat-value">{stats.todayAttendance}</p>
-          </div>
+       
           <div className="stat-card">
             <h3>Monthly Leaves</h3>
-            <p className="stat-value">{stats.monthlyLeaves}</p>
+            <p className="stat-value">1</p>
           </div>
         </div>
       )}
