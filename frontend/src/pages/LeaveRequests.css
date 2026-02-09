@@ -76,32 +76,77 @@
   align-items: center;
 }
 
-.btn-approve {
-  padding: 0.4rem 0.8rem;
-  background-color: #2ecc71;
-  color: white;
+.btn-approve,
+.btn-reject,
+.btn-edit,
+.btn-danger {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
   border: none;
   border-radius: 4px;
   cursor: pointer;
-  font-size: 0.85rem;
+  transition: all 0.3s;
 }
 
-.btn-approve:hover {
-  background-color: #27ae60;
+.btn-approve svg,
+.btn-reject svg,
+.btn-edit svg,
+.btn-danger svg {
+  width: 18px;
+  height: 18px;
+  stroke-width: 2;
+}
+
+.btn-approve {
+  background: #28a745;
+  color: white;
+}
+
+.btn-approve:hover:not(:disabled) {
+  background: #218838;
+  transform: scale(1.1);
 }
 
 .btn-reject {
-  padding: 0.4rem 0.8rem;
-  background-color: #e74c3c;
+  background: #dc3545;
   color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 0.85rem;
 }
 
-.btn-reject:hover {
-  background-color: #c0392b;
+.btn-reject:hover:not(:disabled) {
+  background: #c82333;
+  transform: scale(1.1);
+}
+
+.btn-edit {
+  background: #667eea;
+  color: white;
+}
+
+.btn-edit:hover:not(:disabled) {
+  background: #5568d3;
+  transform: scale(1.1);
+}
+
+.btn-danger {
+  background: #e74c3c;
+  color: white;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: #c0392b;
+  transform: scale(1.1);
+}
+
+.btn-approve:disabled,
+.btn-reject:disabled,
+.btn-edit:disabled,
+.btn-danger:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .btn-edit-icon,

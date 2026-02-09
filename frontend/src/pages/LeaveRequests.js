@@ -27,6 +27,8 @@ const LeaveRequests = () => {
         status: '',
         remarks: ''
     });
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [processingId, setProcessingId] = useState(null);
 
     useEffect(() => {
         fetchLeaves();
@@ -57,6 +59,8 @@ const LeaveRequests = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        setIsSubmitting(true);
+
         try {
             if (editMode) {
                 // Update leave details
@@ -87,6 +91,8 @@ const LeaveRequests = () => {
             fetchLeaves();
         } catch (error) {
             toast.error(error.response?.data?.message || 'Failed to submit leave request');
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -147,6 +153,44 @@ const LeaveRequests = () => {
         }
     };
 
+    const handleApprove = async (id) => {
+        setProcessingId(id);
+        try {
+            await leaveAPI.approve(id);
+            toast.success('Leave request approved');
+            fetchLeaves();
+        } catch (error) {
+            toast.error('Failed to approve leave request');
+        } finally {
+            setProcessingId(null);
+        }
+    };
+
+    const handleReject = async (id) => {
+        setProcessingId(id);
+        try {
+            await leaveAPI.reject(id);
+            toast.success('Leave request rejected');
+            fetchLeaves();
+        } catch (error) {
+            toast.error('Failed to reject leave request');
+        } finally {
+            setProcessingId(null);
+        }
+    };
+
+    const handleDelete = async (id) => {
+        if (window.confirm('Are you sure you want to delete this leave request?')) {
+            try {
+                await leaveAPI.delete(id);
+                toast.success('Leave request deleted successfully');
+                fetchLeaves();
+            } catch (error) {
+                toast.error('Failed to delete leave request');
+            }
+        }
+    };
+
     return (
         <div className="leave-requests">
             <div className="header">
@@ -176,7 +220,7 @@ const LeaveRequests = () => {
                         <th>Reason</th>
                         <th>Status</th>
                         <th>Remarks</th>
-                        {(user.role === 'sysadmin' || user.role === 'admin') && <th>Actions</th>}
+                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -195,35 +239,52 @@ const LeaveRequests = () => {
                                 </span>
                             </td>
                             <td>{leave.remarks || '-'}</td>
-                            {(user.role === 'sysadmin' || user.role === 'admin') && (
-                                <td>
-                                    {leave.status === 'pending' ? (
-                                        <div className="action-buttons">
-                                            <button
-                                                onClick={() => handleStatusUpdate(leave, 'approved')}
+                            <td>
+                                <div className="action-buttons">
+                                    {(user.role === 'sysadmin' || user.role === 'admin') && leave.status === 'pending' ? (
+                                        <>
+                                            <button 
+                                                onClick={() => handleStatusUpdate(leave, 'approved')} 
                                                 className="btn-approve"
+                                                title="Approve"
                                             >
-                                                Approve
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                    <polyline points="20 6 9 17 4 12"></polyline>
+                                                </svg>
                                             </button>
-                                            <button
-                                                onClick={() => handleStatusUpdate(leave, 'rejected')}
+                                            <button 
+                                                onClick={() => handleStatusUpdate(leave, 'rejected')} 
                                                 className="btn-reject"
+                                                title="Reject"
                                             >
-                                                Reject
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                                                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                                                </svg>
                                             </button>
-                                        </div>
+                                        </>
                                     ) : (
-                                        <div className="action-buttons">
-                                            {(user.role === 'sysadmin' || user.role === 'admin') && (
-                                                <button onClick={() => handleEdit(leave)} className="btn-edit-icon" title="Edit Leave">
+                                        <>
+                                            {(user.role === 'sysadmin' || user.role === 'admin' || 
+                                              (user.id === leave.user_id && leave.status === 'pending')) && (
+                                                <button 
+                                                    onClick={() => handleEdit(leave)} 
+                                                    className="btn-edit"
+                                                    title="Edit"
+                                                >
                                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                                         <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                                                         <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
                                                     </svg>
                                                 </button>
                                             )}
-                                            {user.role === 'sysadmin' && (
-                                                <button onClick={() => handleDelete(leave.id)} className="btn-delete-icon" title="Delete Leave">
+                                            {(user.role === 'sysadmin' || 
+                                              (user.id === leave.user_id && leave.status === 'pending')) && (
+                                                <button 
+                                                    onClick={() => handleDelete(leave.id)} 
+                                                    className="btn-danger"
+                                                    title="Delete"
+                                                >
                                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                                         <polyline points="3 6 5 6 21 6"></polyline>
                                                         <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
@@ -232,10 +293,10 @@ const LeaveRequests = () => {
                                                     </svg>
                                                 </button>
                                             )}
-                                        </div>
+                                        </>
                                     )}
-                                </td>
-                            )}
+                                </div>
+                            </td>
                         </tr>
                     ))}
                 </tbody>

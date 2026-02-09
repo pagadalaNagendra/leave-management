@@ -18,6 +18,7 @@ const UserManagement = () => {
     designation: '',
     role: 'user'
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     fetchUsers();
@@ -34,6 +35,8 @@ const UserManagement = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setIsSubmitting(true);
+
     try {
       if (editMode) {
         const updateData = { 
@@ -53,12 +56,12 @@ const UserManagement = () => {
         toast.success('User created successfully! Welcome email sent to ' + formData.email);
       }
       setShowModal(false);
-      setEditMode(false);
-      setSelectedUserId(null);
-      setFormData({ username: '', email: '', password: '', full_name: '', designation: '', role: 'user' });
+      resetForm();
       fetchUsers();
     } catch (error) {
       toast.error(error.response?.data?.message || `Failed to ${editMode ? 'update' : 'create'} user`);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -93,6 +96,10 @@ const UserManagement = () => {
         toast.error('Failed to delete user');
       }
     }
+  };
+
+  const resetForm = () => {
+    setFormData({ username: '', email: '', password: '', full_name: '', designation: '', role: 'user' });
   };
 
   return (
@@ -155,7 +162,7 @@ const UserManagement = () => {
       {showModal && (
         <div className="modal">
           <div className="modal-content">
-            <h2>{editMode ? 'Edit User' : 'Create New User'}</h2>
+            <h2>{editMode ? 'Edit User' : 'Add New User'}</h2>
             <form onSubmit={handleSubmit}>
               <div className="form-row">
                 <div className="form-group">
@@ -233,10 +240,22 @@ const UserManagement = () => {
               </div>
 
               <div className="modal-actions">
-                <button type="submit" className="btn-primary">
-                  {editMode ? 'Update User' : 'Create User'}
+                <button type="submit" className="btn-primary" disabled={isSubmitting}>
+                  {isSubmitting ? (
+                    <>
+                      <span className="spinner"></span>
+                      {editMode ? 'Updating...' : 'Creating...'}
+                    </>
+                  ) : (
+                    editMode ? 'Update User' : 'Add User'
+                  )}
                 </button>
-                <button type="button" onClick={() => setShowModal(false)} className="btn-secondary">
+                <button 
+                  type="button" 
+                  onClick={() => { setShowModal(false); resetForm(); }} 
+                  className="btn-secondary"
+                  disabled={isSubmitting}
+                >
                   Cancel
                 </button>
               </div>

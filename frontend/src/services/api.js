@@ -35,8 +35,10 @@ export const leaveAPI = {
   getAll: () => api.get('/leaves'),
   create: (data) => api.post('/leaves', data),
   update: (id, data) => api.put(`/leaves/${id}`, data),
-  updateStatus: (id, data) => api.patch(`/leaves/${id}/status`, data),
+  updateStatus: (id, data) => api.put(`/leaves/${id}/status`, data),
   delete: (id) => api.delete(`/leaves/${id}`),
+  approve: (id) => api.put(`/leaves/${id}/approve`),
+  reject: (id) => api.put(`/leaves/${id}/reject`),
 };
 
 export const attendanceAPI = {
