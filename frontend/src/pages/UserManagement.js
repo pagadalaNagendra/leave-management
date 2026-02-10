@@ -105,7 +105,9 @@ const UserManagement = () => {
   return (
     <div className="user-management">
       <div className="header">
-        <h1>User Management</h1>
+        <h1>
+          User Management
+        </h1>
         <button onClick={handleAddNew} className="btn-add-user" title="Add New User">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>

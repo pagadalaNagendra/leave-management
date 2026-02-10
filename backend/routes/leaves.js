@@ -62,61 +62,90 @@ router.patch('/:id/status', authenticate, authorize('sysadmin', 'admin'), async 
     const { id } = req.params;
     const { status, remarks, start_date, end_date } = req.body;
     
-    // Get original dates before update - use DATE() to get only date part
-    const originalQuery = 'SELECT start_date::date as start_date, end_date::date as end_date FROM leave_requests WHERE id = $1';
-    const { rows: originalRows } = await pool.query(originalQuery, [id]);
-    const originalDates = originalRows[0] ? {
-      start_date: originalRows[0].start_date,
-      end_date: originalRows[0].end_date
-    } : null;
-    
-    console.log('Original dates from DB:', originalDates);
-    console.log('New dates from request:', { start_date, end_date });
-    
-    const query = `
-      UPDATE leave_requests
-      SET status = $1, approved_by = $2, approved_at = CURRENT_TIMESTAMP, 
-          remarks = $3, start_date = $4, end_date = $5, updated_at = CURRENT_TIMESTAMP
-      WHERE id = $6
-      RETURNING *, start_date::date as start_date_only, end_date::date as end_date_only
-    `;
-    
-    const { rows } = await pool.query(query, [
-      status, req.user.id, remarks || null, start_date, end_date, id
-    ]);
-    
+    // Validate status
+    const validStatuses = ['pending', 'approved', 'rejected', 'withdrawn'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ message: 'Invalid status' });
+    }
+
+    let query, params;
+
+    if (start_date && end_date) {
+      // Update status with date changes
+      query = `
+        UPDATE leave_requests
+        SET status = $1, remarks = $2, start_date = $3, end_date = $4, updated_at = CURRENT_TIMESTAMP
+        WHERE id = $5
+        RETURNING *
+      `;
+      params = [status, remarks || null, start_date, end_date, id];
+    } else {
+      // Update only status and remarks
+      query = `
+        UPDATE leave_requests
+        SET status = $1, remarks = $2, updated_at = CURRENT_TIMESTAMP
+        WHERE id = $3
+        RETURNING *
+      `;
+      params = [status, remarks || null, id];
+    }
+
+    const { rows } = await pool.query(query, params);
+
     if (rows.length === 0) {
       return res.status(404).json({ message: 'Leave request not found' });
     }
 
-    // Get user details
-    const userQuery = `
-      SELECT u.email, u.full_name 
-      FROM users u
-      WHERE u.id = $1
-    `;
-    const { rows: userRows } = await pool.query(userQuery, [rows[0].user_id]);
-    
-    // Send email notification to user with properly formatted dates
-    if (userRows.length > 0) {
-      await sendLeaveStatusUpdateEmail(
-        userRows[0].email,
-        userRows[0].full_name,
-        {
-          ...rows[0],
-          start_date: rows[0].start_date_only,
-          end_date: rows[0].end_date_only
-        },
-        status,
-        remarks,
-        req.user.full_name,
-        originalDates
-      );
-    }
-    
     res.json(rows[0]);
   } catch (error) {
-    console.error('Error in status update:', error);
+    console.error('Update status error:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Update leave status (approve/reject/withdraw)
+router.put('/:id/status', authenticate, authorize('sysadmin', 'admin'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, remarks, start_date, end_date } = req.body;
+
+    // Validate status
+    const validStatuses = ['pending', 'approved', 'rejected'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ message: 'Invalid status' });
+    }
+
+    let query, params;
+
+    if (start_date && end_date) {
+      // Update status with date changes
+      query = `
+        UPDATE leave_requests
+        SET status = $1, remarks = $2, start_date = $3, end_date = $4, updated_at = CURRENT_TIMESTAMP
+        WHERE id = $5
+        RETURNING *
+      `;
+      params = [status, remarks || null, start_date, end_date, id];
+    } else {
+      // Update only status and remarks
+      query = `
+        UPDATE leave_requests
+        SET status = $1, remarks = $2, updated_at = CURRENT_TIMESTAMP
+        WHERE id = $3
+        RETURNING *
+      `;
+      params = [status, remarks || null, id];
+    }
+
+    const { rows } = await pool.query(query, params);
+
+    if (rows.length === 0) {
+      return res.status(404).json({ message: 'Leave request not found' });
+    }
+
+    res.json(rows[0]);
+  } catch (error) {
+    console.error('Update status error:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
@@ -147,9 +176,20 @@ router.put('/:id', authenticate, authorize('sysadmin', 'admin'), async (req, res
 });
 
 // Delete leave request (sysadmin only)
-router.delete('/:id', authenticate, authorize('sysadmin'), async (req, res) => {
+router.delete('/:id', authenticate, async (req, res) => {
   try {
     const { id } = req.params;
+    
+    // Check if user owns the leave request and it's pending
+    if (req.user.role_name === 'user') {
+      const checkQuery = 'SELECT * FROM leave_requests WHERE id = $1 AND user_id = $2 AND status = $3';
+      const { rows } = await pool.query(checkQuery, [id, req.user.id, 'pending']);
+      
+      if (rows.length === 0) {
+        return res.status(403).json({ message: 'You can only delete your own pending leave requests' });
+      }
+    }
+    
     await pool.query('DELETE FROM leave_requests WHERE id = $1', [id]);
     res.json({ message: 'Leave request deleted successfully' });
   } catch (error) {

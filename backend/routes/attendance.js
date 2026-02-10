@@ -91,17 +91,35 @@ router.post('/mark', authenticate, authorize('sysadmin', 'admin'), async (req, r
 // Auto login (for current user)
 router.post('/login', authenticate, async (req, res) => {
   try {
+    // Get current UTC time and convert to IST (UTC + 5:30)
+    const now = new Date();
+    const istOffset = 5.5 * 60 * 60 * 1000; // IST is UTC + 5:30
+    const istTime = new Date(now.getTime() + istOffset);
+    
+    // Format date as YYYY-MM-DD in IST
+    const year = istTime.getUTCFullYear();
+    const month = String(istTime.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(istTime.getUTCDate()).padStart(2, '0');
+    const dateStr = `${year}-${month}-${day}`;
+    
+    // Format timestamp as YYYY-MM-DD HH:MM:SS in IST
+    const hours = String(istTime.getUTCHours()).padStart(2, '0');
+    const minutes = String(istTime.getUTCMinutes()).padStart(2, '0');
+    const seconds = String(istTime.getUTCSeconds()).padStart(2, '0');
+    const loginTimestamp = `${dateStr} ${hours}:${minutes}:${seconds}`;
+
     const query = `
       INSERT INTO attendance (user_id, date, login_time, status, marked_by)
-      VALUES ($1, CURRENT_DATE, CURRENT_TIMESTAMP, 'present', $1)
+      VALUES ($1, $2, $3, 'present', $1)
       ON CONFLICT (user_id, date)
-      DO UPDATE SET login_time = CURRENT_TIMESTAMP
+      DO UPDATE SET login_time = EXCLUDED.login_time, updated_at = CURRENT_TIMESTAMP
       RETURNING *
     `;
 
-    const { rows } = await pool.query(query, [req.user.id]);
+    const { rows } = await pool.query(query, [req.user.id, dateStr, loginTimestamp]);
     res.json(rows[0]);
   } catch (error) {
+    console.error('Login error:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
@@ -109,14 +127,31 @@ router.post('/login', authenticate, async (req, res) => {
 // Auto logout (for current user)
 router.post('/logout', authenticate, async (req, res) => {
   try {
+    // Get current UTC time and convert to IST (UTC + 5:30)
+    const now = new Date();
+    const istOffset = 5.5 * 60 * 60 * 1000; // IST is UTC + 5:30
+    const istTime = new Date(now.getTime() + istOffset);
+    
+    // Format date as YYYY-MM-DD in IST
+    const year = istTime.getUTCFullYear();
+    const month = String(istTime.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(istTime.getUTCDate()).padStart(2, '0');
+    const dateStr = `${year}-${month}-${day}`;
+    
+    // Format timestamp as YYYY-MM-DD HH:MM:SS in IST
+    const hours = String(istTime.getUTCHours()).padStart(2, '0');
+    const minutes = String(istTime.getUTCMinutes()).padStart(2, '0');
+    const seconds = String(istTime.getUTCSeconds()).padStart(2, '0');
+    const logoutTimestamp = `${dateStr} ${hours}:${minutes}:${seconds}`;
+
     const query = `
       UPDATE attendance
-      SET logout_time = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
-      WHERE user_id = $1 AND date = CURRENT_DATE
+      SET logout_time = $1, updated_at = CURRENT_TIMESTAMP
+      WHERE user_id = $2 AND date = $3
       RETURNING *
     `;
 
-    const { rows } = await pool.query(query, [req.user.id]);
+    const { rows } = await pool.query(query, [logoutTimestamp, req.user.id, dateStr]);
 
     if (rows.length === 0) {
       return res.status(404).json({ message: 'No login record found for today' });
@@ -124,6 +159,7 @@ router.post('/logout', authenticate, async (req, res) => {
 
     res.json(rows[0]);
   } catch (error) {
+    console.error('Logout error:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
@@ -175,7 +211,21 @@ router.get('/history', authenticate, async (req, res) => {
 router.put('/:id', authenticate, authorize('sysadmin'), async (req, res) => {
   try {
     const { id } = req.params;
-    const { login_time, logout_time, status } = req.body;
+    const { date, login_time, logout_time, status } = req.body;
+
+    // Get the existing record to get the date
+    const existingQuery = 'SELECT date FROM attendance WHERE id = $1';
+    const { rows: existingRows } = await pool.query(existingQuery, [id]);
+    
+    if (existingRows.length === 0) {
+      return res.status(404).json({ message: 'Attendance record not found' });
+    }
+
+    const recordDate = date || existingRows[0].date.toISOString().split('T')[0];
+
+    // Convert time strings to timestamp format
+    const loginTimestamp = login_time ? `${recordDate} ${login_time}:00` : null;
+    const logoutTimestamp = logout_time ? `${recordDate} ${logout_time}:00` : null;
 
     const query = `
       UPDATE attendance
@@ -184,14 +234,11 @@ router.put('/:id', authenticate, authorize('sysadmin'), async (req, res) => {
       RETURNING *
     `;
 
-    const { rows } = await pool.query(query, [login_time, logout_time, status, id]);
-
-    if (rows.length === 0) {
-      return res.status(404).json({ message: 'Attendance record not found' });
-    }
+    const { rows } = await pool.query(query, [loginTimestamp, logoutTimestamp, status, id]);
 
     res.json(rows[0]);
   } catch (error) {
+    console.error('Update attendance error:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });

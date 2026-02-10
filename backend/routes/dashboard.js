@@ -101,6 +101,8 @@ router.get('/user-summary', authenticate, async (req, res) => {
 // User-wise leave statistics for admin/sysadmin
 router.get('/user-leave-stats', authenticate, authorize('sysadmin', 'admin'), async (req, res) => {
   try {
+    const year = req.query.year || new Date().getFullYear();
+    
     const query = `
       SELECT 
         u.id,
@@ -112,15 +114,113 @@ router.get('/user-leave-stats', authenticate, authorize('sysadmin', 'admin'), as
         COALESCE(SUM(CASE WHEN lr.status = 'pending' THEN (lr.end_date - lr.start_date + 1) ELSE 0 END), 0) as days_pending
       FROM users u
       LEFT JOIN leave_requests lr ON u.id = lr.user_id 
-        AND EXTRACT(YEAR FROM lr.start_date) = EXTRACT(YEAR FROM CURRENT_DATE)
+        AND EXTRACT(YEAR FROM lr.start_date) = $1
       WHERE u.is_active = true
       GROUP BY u.id, u.full_name, u.email, u.designation
       ORDER BY days_taken DESC
     `;
     
-    const { rows } = await pool.query(query);
-    
+    const { rows } = await pool.query(query, [year]);
     res.json(rows);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Monthly leave trends
+router.get('/leave-trends', authenticate, authorize('sysadmin', 'admin'), async (req, res) => {
+  try {
+    const year = req.query.year || new Date().getFullYear();
+    
+    const query = `
+      WITH months AS (
+        SELECT 
+          generate_series(1, 12) AS month_num,
+          TO_CHAR(DATE '2024-01-01' + (generate_series(1, 12) - 1) * INTERVAL '1 month', 'Mon') AS month
+      )
+      SELECT 
+        m.month,
+        m.month_num,
+        COALESCE(COUNT(lr.id), 0) as total_leaves
+      FROM months m
+      LEFT JOIN leave_requests lr ON 
+        EXTRACT(MONTH FROM lr.start_date) = m.month_num
+        AND EXTRACT(YEAR FROM lr.start_date) = $1
+        AND lr.status = 'approved'
+      GROUP BY m.month, m.month_num
+      ORDER BY m.month_num
+    `;
+    const { rows } = await pool.query(query, [year]);
+    res.json(rows);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Leave type distribution - Overall stats
+router.get('/leave-type-distribution', authenticate, authorize('sysadmin', 'admin'), async (req, res) => {
+  try {
+    const year = req.query.year || new Date().getFullYear();
+    
+    const query = `
+      SELECT 
+        COUNT(*) as total_requests,
+        COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending,
+        COUNT(CASE WHEN status = 'approved' THEN 1 END) as approved,
+        COUNT(CASE WHEN status = 'rejected' THEN 1 END) as rejected
+      FROM leave_requests
+      WHERE EXTRACT(YEAR FROM start_date) = $1
+    `;
+    const { rows } = await pool.query(query, [year]);
+    
+    // Transform to array format for chart
+    const result = [
+      { status: 'Total Requests', count: parseInt(rows[0].total_requests) },
+      { status: 'Pending', count: parseInt(rows[0].pending) },
+      { status: 'Approved', count: parseInt(rows[0].approved) },
+      { status: 'Rejected', count: parseInt(rows[0].rejected) }
+    ];
+    
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Attendance overview - User-wise for the year
+router.get('/attendance-overview', authenticate, authorize('sysadmin', 'admin'), async (req, res) => {
+  try {
+    const year = req.query.year || new Date().getFullYear();
+    
+    const query = `
+      SELECT 
+        u.full_name as user_name,
+        COUNT(CASE WHEN a.status = 'present' THEN 1 END)::INTEGER as present,
+        COUNT(CASE WHEN a.status = 'absent' THEN 1 END)::INTEGER as absent,
+        COUNT(*)::INTEGER as total_days
+      FROM users u
+      LEFT JOIN attendance a ON u.id = a.user_id 
+        AND EXTRACT(YEAR FROM a.date) = $1
+        AND a.date <= CURRENT_DATE
+      WHERE u.is_active = true
+      GROUP BY u.id, u.full_name
+      HAVING COUNT(*) > 0
+      ORDER BY COUNT(CASE WHEN a.status = 'present' THEN 1 END) DESC
+      LIMIT 10
+    `;
+    const { rows } = await pool.query(query, [year]);
+    
+    // Ensure numeric values
+    const formattedRows = rows.map(row => ({
+      user_name: row.user_name,
+      present: Number(row.present),
+      absent: Number(row.absent),
+      total_days: Number(row.total_days)
+    }));
+    
+    console.log('Attendance data being sent:', formattedRows);
+    
+    res.json(formattedRows);
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
