@@ -58,9 +58,6 @@ const Login = () => {
             {loading ? 'Logging in...' : 'Login'}
           </button>
         </form>
-        <p className="default-credentials">
-          Default: sysadmin@company.com / Admin@123
-        </p>
       </div>
     </div>
   );

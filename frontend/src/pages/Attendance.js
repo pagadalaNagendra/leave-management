@@ -209,7 +209,7 @@ const Attendance = () => {
     formData.append('file', uploadFile);
 
     try {
-      const response = await fetch('http://localhost:5000/api/attendance/upload-excel', {
+      const response = await fetch('http://127.0.0.1:8289/api/attendance/upload-excel', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`

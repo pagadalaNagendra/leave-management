@@ -153,7 +153,7 @@ const Layout = ({ children }) => {
                 </div>
 
                 <div className="navbar-center">
-                    <h1 className="app-title">Leave Management & Attendance System</h1>
+                    <h1 className="app-title">Leave & Attendance Management System</h1>
                 </div>
 
                 <div className="navbar-right">
