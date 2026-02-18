@@ -106,6 +106,7 @@ router.get('/user-leave-stats', authenticate, authorize('sysadmin', 'admin'), as
     const query = `
       SELECT 
         u.id,
+        u.username,
         u.full_name,
         u.email,
         u.designation,
@@ -116,7 +117,7 @@ router.get('/user-leave-stats', authenticate, authorize('sysadmin', 'admin'), as
       LEFT JOIN leave_requests lr ON u.id = lr.user_id 
         AND EXTRACT(YEAR FROM lr.start_date) = $1
       WHERE u.is_active = true
-      GROUP BY u.id, u.full_name, u.email, u.designation
+      GROUP BY u.id, u.username, u.full_name, u.email, u.designation
       ORDER BY days_taken DESC
     `;
     
@@ -194,7 +195,7 @@ router.get('/attendance-overview', authenticate, authorize('sysadmin', 'admin'),
     
     const query = `
       SELECT 
-        u.full_name as user_name,
+        u.username as user_name,
         COUNT(CASE WHEN a.status = 'present' THEN 1 END)::INTEGER as present,
         COUNT(CASE WHEN a.status = 'absent' THEN 1 END)::INTEGER as absent,
         COUNT(*)::INTEGER as total_days
@@ -203,7 +204,7 @@ router.get('/attendance-overview', authenticate, authorize('sysadmin', 'admin'),
         AND EXTRACT(YEAR FROM a.date) = $1
         AND a.date <= CURRENT_DATE
       WHERE u.is_active = true
-      GROUP BY u.id, u.full_name
+      GROUP BY u.id, u.username
       HAVING COUNT(*) > 0
       ORDER BY COUNT(CASE WHEN a.status = 'present' THEN 1 END) DESC
       LIMIT 10
@@ -211,16 +212,55 @@ router.get('/attendance-overview', authenticate, authorize('sysadmin', 'admin'),
     const { rows } = await pool.query(query, [year]);
     
     // Ensure numeric values
-    const formattedRows = rows.map(row => ({
-      user_name: row.user_name,
-      present: Number(row.present),
-      absent: Number(row.absent),
-      total_days: Number(row.total_days)
-    }));
+    const formattedRows = rows.map(row => {
+      const total = Number(row.total_days) || 0;
+      const present = Number(row.present) || 0;
+      const absent = Number(row.absent) || 0;
+      return {
+        user_name: row.user_name,
+        present,
+        absent,
+        total_days: total,
+        present_percent: total > 0 ? Math.round((present / total) * 100) : 0,
+        absent_percent: total > 0 ? Math.round((absent / total) * 100) : 0
+      };
+    });
     
     console.log('Attendance data being sent:', formattedRows);
     
     res.json(formattedRows);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Month-wise leave taken for the logged-in user
+router.get('/user-monthly-leave-days', authenticate, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const year = req.query.year || new Date().getFullYear();
+
+    const query = `
+      WITH months AS (
+        SELECT 
+          generate_series(1, 12) AS month_num,
+          TO_CHAR(DATE '${year}-01-01' + (generate_series(1, 12) - 1) * INTERVAL '1 month', 'Mon') AS month
+      )
+      SELECT 
+        m.month,
+        m.month_num,
+        COALESCE(SUM(lr.end_date - lr.start_date + 1), 0) as days
+      FROM months m
+      LEFT JOIN leave_requests lr ON 
+        EXTRACT(MONTH FROM lr.start_date) = m.month_num
+        AND EXTRACT(YEAR FROM lr.start_date) = $1
+        AND lr.user_id = $2
+        AND lr.status = 'approved'
+      GROUP BY m.month, m.month_num
+      ORDER BY m.month_num
+    `;
+    const { rows } = await pool.query(query, [year, userId]);
+    res.json(rows);
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }

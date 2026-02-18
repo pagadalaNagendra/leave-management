@@ -20,7 +20,7 @@ const Login = () => {
       const { data } = await authAPI.login({ email, password });
       login(data.token, data.user);
       toast.success('Login successful!');
-      navigate('/dashboard');
+      navigate('/leavemanagement/dashboard');
     } catch (error) {
       toast.error(error.response?.data?.message || 'Login failed');
     } finally {

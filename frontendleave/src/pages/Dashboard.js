@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { dashboardAPI } from '../services/api';
+import { leaveAPI } from '../services/api';
 import * as XLSX from 'xlsx';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import './Dashboard.css';
+import axios from 'axios';
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -14,6 +16,8 @@ const Dashboard = () => {
   const [leaveTypeDistribution, setLeaveTypeDistribution] = useState([]);
   const [attendanceOverview, setAttendanceOverview] = useState([]);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [monthlyLeaveDays, setMonthlyLeaveDays] = useState([]);
+  const [monthlyAttendance, setMonthlyAttendance] = useState([]);
   const COLORS = ['#3498db', '#2ecc71', '#f39c12', '#e74c3c', '#9b59b6'];
 
   // Generate year options (last 5 years + current year + next year)
@@ -50,6 +54,78 @@ const Dashboard = () => {
       console.error('Error fetching dashboard data:', error);
     }
   };
+
+  const fetchMonthlyLeaveDays = async () => {
+    try {
+      // Use leaveAPI.getAll() which already handles auth and baseURL
+      const { data } = await leaveAPI.getAll();
+      const months = [
+        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      ];
+      const monthMap = {};
+      months.forEach((m, i) => { monthMap[i + 1] = { month: m, days: 0 }; });
+
+      data.forEach(leave => {
+        const start = new Date(leave.start_date);
+        const end = new Date(leave.end_date);
+        if (
+          leave.status === 'approved' &&
+          (!user || leave.user_id === user.id)
+        ) {
+          const monthNum = start.getMonth() + 1;
+          const days = Math.round((end - start) / (1000 * 60 * 60 * 24)) + 1;
+          if (monthMap[monthNum]) {
+            monthMap[monthNum].days += days;
+          }
+        }
+      });
+
+      setMonthlyLeaveDays(Object.values(monthMap));
+    } catch (error) {
+      console.error('Error fetching monthly leave days:', error);
+      setMonthlyLeaveDays([]);
+    }
+  };
+
+  const fetchMonthlyAttendance = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+      const { data } = await axios.get('http://127.0.0.1:5002/api/attendance/history', config);
+      const months = [
+        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      ];
+      const monthMap = {};
+      months.forEach((m, i) => { monthMap[i + 1] = { month: m, present: 0, absent: 0 }; });
+
+      data.forEach(record => {
+        const date = new Date(record.date);
+        const monthNum = date.getMonth() + 1;
+        if (!user || record.user_id === user.id) {
+          if (record.status === 'present' && monthMap[monthNum]) {
+            monthMap[monthNum].present += 1;
+          }
+          if (record.status === 'absent' && monthMap[monthNum]) {
+            monthMap[monthNum].absent += 1;
+          }
+        }
+      });
+
+      setMonthlyAttendance(Object.values(monthMap));
+    } catch (error) {
+      console.error('Error fetching monthly attendance:', error);
+      setMonthlyAttendance([]);
+    }
+  };
+
+  useEffect(() => {
+    if (user.role === 'user') {
+      fetchMonthlyLeaveDays();
+      fetchMonthlyAttendance();
+    }
+  }, [selectedYear, user.role]);
 
   const downloadLeaveReport = () => {
     // Prepare data for Excel
@@ -105,8 +181,8 @@ const Dashboard = () => {
               <p className="stat-value">{stats.pendingRequests}</p>
             </div>
             <div className="stat-card">
-              <h3>Monthly Leaves</h3>
-              <p className="stat-value">1</p>
+              <h3>Yearly Leaves</h3>
+              <p className="stat-value">12</p>
             </div>
           </div>
 
@@ -117,7 +193,7 @@ const Dashboard = () => {
               {/* Leave Trends Chart */}
               <div className="analytics-card">
                 <div className="card-header-with-selector">
-                  <h3>Monthly Leave Count</h3>
+                  <h3>User Wise Leave Count</h3>
                   <div className="year-selector">
                     <select
                       id="year-select"
@@ -131,20 +207,32 @@ const Dashboard = () => {
                   </div>
                 </div>
                 <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={leaveTrends}>
+                  <BarChart
+                    data={userLeaveStats.filter(
+                      stat =>
+                        stat.role !== 'admin' &&
+                        stat.role !== 'sysadmin' &&
+                        stat.role?.toLowerCase() !== 'administrator' &&
+                        stat.full_name?.toLowerCase() !== 'system administrator'
+                    )}
+                  >
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="month" />
-                    <YAxis />
+                    <XAxis dataKey="username" label={{ value: 'Username', position: 'insideBottom', offset: -5 }} />
+                    <YAxis
+                      type="number"
+                      label={{ value: 'Days Taken', angle: -90, position: 'insideLeft' }}
+                      allowDecimals={false}
+                    />
                     <Tooltip cursor={false} />
                     <Legend />
-                    <Bar dataKey="total_leaves" fill="#3498db" name="Total Leaves" />
+                    <Bar dataKey="days_taken" fill="#3498db" name="Days Taken" />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
 
               {/* Leave Type Distribution */}
               <div className="analytics-card">
-                <h3>Overall Leave Status Distribution</h3>
+                <h3>Leaves Status</h3>
                 <ResponsiveContainer width="100%" height={300}>
                   <PieChart>
                     <Pie
@@ -179,18 +267,28 @@ const Dashboard = () => {
               {/* Attendance Overview */}
               <div className="analytics-card">
                 <div className="card-header-with-selector">
-                  <h3>Employee Attendance ({selectedYear})</h3>
+                  <h3>Employee wise Attendance </h3>
                 </div>
                 <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={attendanceOverview.map((item, index) => ({
-                    ...item,
-                    index: index + 1,
-                    present: Number(item.present) || 0,
-                    absent: Number(item.absent) || 0
-                  }))}>
+                  <BarChart data={attendanceOverview
+                    .filter(item =>
+                      item.user_name &&
+                      item.user_name.toLowerCase() !== 'sysadmin' &&
+                      item.user_name.toLowerCase() !== 'system administrator'
+                    )
+                    .map((item, index) => ({
+                      ...item,
+                      index: index + 1,
+                      present_percent: Number(item.present_percent) || 0,
+                      absent_percent: Number(item.absent_percent) || 0
+                    }))}>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="index" label={{ value: 'Employees', position: 'insideBottom', offset: -5 }} />
-                    <YAxis label={{ value: 'Days', angle: -90, position: 'insideLeft' }} />
+                    <XAxis dataKey="user_name" label={{ value: 'Username', position: 'insideBottom', offset: -5 }} />
+                    <YAxis
+                      label={{ value: 'Attendance (%)', angle: -90, position: 'insideLeft' }}
+                      domain={[0, 100]}
+                      ticks={[0, 20, 40, 60, 80, 100]}
+                    />
                     <Tooltip
                       cursor={false}
                       contentStyle={{
@@ -200,17 +298,16 @@ const Dashboard = () => {
                         padding: '10px'
                       }}
                       formatter={(value, name, props) => {
-                        const label = props.dataKey === 'present' ? 'Present Days' : 'Absent Days';
-                        return [value, label];
+                        const label = props.dataKey === 'present_percent' ? 'Present (%)' : 'Absent (%)';
+                        return [`${value}%`, label];
                       }}
                       labelFormatter={(value) => {
-                        const employee = attendanceOverview[value - 1];
-                        return employee ? `Employee: ${employee.user_name}` : '';
+                        return value ? `Username: ${value}` : '';
                       }}
                     />
                     <Legend />
-                    <Bar dataKey="present" fill="#2ecc71" name="Present" />
-                    <Bar dataKey="absent" fill="#e74c3c" name="Absent" />
+                    <Bar dataKey="present_percent" fill="#2ecc71" name="Present (%)" />
+                    <Bar dataKey="absent_percent" fill="#e74c3c" name="Absent (%)" />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -220,29 +317,103 @@ const Dashboard = () => {
       )}
 
       {user.role === 'user' && userSummary && (
-        <div className="user-summary">
-          <h2>Summary</h2>
-          <div className="summary-grid">
-            <div className="summary-card">
-              <h4>Total Leaves Taken</h4>
-              <p>{userSummary.totalLeaves} requests</p>
-              <p className="sub-text">{userSummary.totalLeaveDays} days</p>
+        <>
+          <div className="stats-grid user-stats-grid">
+            <div className="stat-card">
+              <h3>Total Leaves</h3>
+              <p className="stat-value">{userSummary.totalLeaveDays}</p>
             </div>
-            <div className="summary-card">
-              <h4>Total Present</h4>
-              <p>{userSummary.totalPresent} days</p>
+            <div className="stat-card">
+              <h3>Present Days</h3>
+              <p className="stat-value">{userSummary.totalPresent}</p>
             </div>
-            <div className="summary-card">
-              <h4>Total Absences</h4>
-              <p>{userSummary.totalAbsences} days</p>
+            <div className="stat-card">
+              <h3>Absent Days</h3>
+              <p className="stat-value">{userSummary.totalAbsences}</p>
+            </div>
+            <div className="stat-card">
+              <h3>Pending Requests</h3>
+              <p className="stat-value">{userSummary.pendingRequests}</p>
+            </div>
+            <div className="stat-card">
+              <h3>Yearly Leaves</h3>
+              <p className="stat-value">12</p>
             </div>
           </div>
-        </div>
+
+          <div className="analytics-section">
+            <div className="analytics-grid user-analytics-grid">
+
+              {/* Month Wise Leave Taken History */}
+              <div className="analytics-card">
+                <h3>Month Wise Leave Taken</h3>
+                <div style={{ width: "100%", minWidth: 0 }}>
+                  <ResponsiveContainer width="100%" height={180}>
+                    <BarChart data={monthlyLeaveDays}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="month" />
+                      <YAxis allowDecimals={false} />
+                      <Tooltip />
+                      <Legend />
+                      <Bar dataKey="days" fill="#3498db" name="Leave Days" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+              {/* Leave Status Pie Chart */}
+              <div className="analytics-card">
+                <h3>Leave Status Distribution</h3>
+                <div style={{ width: "100%", minWidth: 0 }}>
+                  <ResponsiveContainer width="100%" height={180}>
+                    <PieChart>
+                      <Pie
+                        data={[
+                          { name: 'Approved', value: userSummary.totalLeaves },
+                          { name: 'Pending', value: userSummary.pendingRequests },
+                          { name: 'Rejected', value: userSummary.totalRejected || 0 }
+                        ]}
+                        cx="50%"
+                        cy="50%"
+                        outerRadius={60}
+                        dataKey="value"
+                        label
+                      >
+                        <Cell key="approved" fill="#2ecc71" />
+                        <Cell key="pending" fill="#f39c12" />
+                        <Cell key="rejected" fill="#e74c3c" />
+                      </Pie>
+                      <Tooltip />
+                      <Legend />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              {/* Month Wise Attendance Present & Absent */}
+              <div className="analytics-card">
+                <h3>Month Wise Attendance</h3>
+                <div style={{ width: "100%", minWidth: 0 }}>
+                  <ResponsiveContainer width="100%" height={180}>
+                    <BarChart data={monthlyAttendance}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="month" />
+                      <YAxis allowDecimals={false} />
+                      <Tooltip />
+                      <Legend />
+                      <Bar dataKey="present" fill="#2ecc71" name="Present Days" />
+                      <Bar dataKey="absent" fill="#e74c3c" name="Absent Days" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
       )}
 
       {user.role === 'user' && userSummary && (
         <div className="user-leave-stats">
-          <h2>Your Leave Statistics</h2>
+          <h2>Leave Statistics</h2>
           <table className="stats-table">
             <thead>
               <tr>
@@ -287,7 +458,7 @@ const Dashboard = () => {
           <table className="stats-table">
             <thead>
               <tr>
-                <th>Employee</th>
+                <th>Username</th>
                 <th>Designation</th>
                 <th>Total Requests</th>
                 <th>Days Taken</th>
@@ -300,7 +471,7 @@ const Dashboard = () => {
                 <tr key={userStat.id}>
                   <td>
                     <div className="user-info">
-                      <strong>{userStat.full_name}</strong>
+                      <strong>{userStat.username}</strong>
                     </div>
                   </td>
                   <td>{userStat.designation || '-'}</td>

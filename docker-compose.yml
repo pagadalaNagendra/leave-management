@@ -3,12 +3,12 @@ version: '3.8'
 services:
   backend:
     build:
-      context: ./backend
+      context: ./backendleave
       dockerfile: Dockerfile
     ports:
       - "8289:5002"
     volumes:
-      - ./backend:/app
+      - ./backendleave:/app
       - /app/node_modules
     depends_on:
       - db
@@ -23,7 +23,7 @@ services:
 
   frontend:
     build:
-      context: ./frontend
+      context: ./frontendleave
       dockerfile: Dockerfile
     ports:
       - "8288:8288"

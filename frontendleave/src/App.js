@@ -16,7 +16,7 @@ const PrivateRoute = ({ children, roles }) => {
 
   if (loading) return <div>Loading...</div>;
   
-  if (!user) return <Navigate to="/login" />;
+  if (!user) return <Navigate to="/leavemanagement/login" />;
   
   if (roles && !roles.includes(user.role)) {
     return <Navigate to="/dashboard" />;
@@ -30,12 +30,12 @@ function App() {
     <AuthProvider>
       <BrowserRouter>
         <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
-          <Route path="/users" element={<PrivateRoute roles={['sysadmin', 'admin']}><UserManagement /></PrivateRoute>} />
-          <Route path="/leaves" element={<PrivateRoute><LeaveRequests /></PrivateRoute>} />
-          <Route path="/attendance" element={<PrivateRoute><Attendance /></PrivateRoute>} />
-          <Route path="/" element={<Navigate to="/dashboard" />} />
+          <Route path="/leavemanagement/login" element={<Login />} />
+          <Route path="/leavemanagement/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
+          <Route path="/leavemanagement/users" element={<PrivateRoute roles={['sysadmin', 'admin']}><UserManagement /></PrivateRoute>} />
+          <Route path="/leavemanagement/leaves" element={<PrivateRoute><LeaveRequests /></PrivateRoute>} />
+          <Route path="/leavemanagement/attendance" element={<PrivateRoute><Attendance /></PrivateRoute>} />
+          <Route path="/leavemanagement" element={<Navigate to="/leavemanagement/dashboard" />} />
         </Routes>
         <ToastContainer position="top-right" autoClose={3000} />
       </BrowserRouter>

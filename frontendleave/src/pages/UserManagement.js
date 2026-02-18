@@ -122,8 +122,10 @@ const UserManagement = () => {
       <table className="users-table">
         <thead>
           <tr>
+           
             <th>Full Name</th>
             <th>Email</th>
+            <th>Employee Id</th>
             <th>Designation</th>
             <th>Role</th>
             <th>Actions</th>
@@ -132,10 +134,12 @@ const UserManagement = () => {
         <tbody>
           {users.map((u) => (
             <tr key={u.id}>
-              <td>{u.full_name}</td>
+              <td>{u.username}</td>
               <td>{u.email}</td>
+               <td>{u.full_name}</td>
               <td>{u.designation || '-'}</td>
               <td><span className={`role-badge ${u.role_name}`}>{u.role_name}</span></td>
+             
               <td>
                 <div className="action-buttons">
                   <button onClick={() => handleEdit(u)} className="btn-edit" title="Edit User">
@@ -168,22 +172,22 @@ const UserManagement = () => {
             <form onSubmit={handleSubmit}>
               <div className="form-row">
                 <div className="form-group">
-                  <label>Full Name</label>
-                  <input
-                    type="text"
-                    placeholder="Enter full name"
-                    value={formData.full_name}
-                    onChange={(e) => setFormData({...formData, full_name: e.target.value})}
-                    required
-                  />
-                </div>
-                <div className="form-group">
                   <label>Username</label>
                   <input
                     type="text"
                     placeholder="Enter username"
                     value={formData.username}
                     onChange={(e) => setFormData({...formData, username: e.target.value})}
+                    required
+                  />
+                </div>
+                 <div className="form-group">
+                  <label>Empolyee Id</label>
+                  <input
+                    type="text"
+                    placeholder="Enter Empolyee Id"
+                    value={formData.full_name}
+                    onChange={(e) => setFormData({...formData, full_name: e.target.value})}
                     required
                   />
                 </div>
