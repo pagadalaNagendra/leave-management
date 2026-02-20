@@ -9,7 +9,7 @@ const router = express.Router();
 router.get('/', authenticate, async (req, res) => {
   try {
     let query = `
-      SELECT lr.*, u.full_name as user_name, a.full_name as approver_name
+      SELECT lr.*, u.username as user_name, a.username as approver_name
       FROM leave_requests lr
       JOIN users u ON lr.user_id = u.id
       LEFT JOIN users a ON lr.approved_by = a.id
@@ -48,7 +48,7 @@ router.post('/', authenticate, async (req, res) => {
     ]);
     
     // Send notification email to admin
-    await sendLeaveRequestNotification(rows[0], req.user.full_name, req.user.email);
+    await sendLeaveRequestNotification(rows[0], req.user.username, req.user.email);
     
     res.status(201).json(rows[0]);
   } catch (error) {
@@ -252,14 +252,14 @@ router.get('/:id/quick-action', async (req, res) => {
 
     // Get admin user
     const adminQuery = `
-      SELECT u.id, u.full_name FROM users u
+      SELECT u.id, u.username FROM users u
       JOIN roles r ON u.role_id = r.id
       WHERE r.name = 'sysadmin'
       LIMIT 1
     `;
     const { rows: adminRows } = await pool.query(adminQuery);
     const adminId = adminRows[0]?.id || 1;
-    const adminName = adminRows[0]?.full_name || 'Administrator';
+    const adminName = adminRows[0]?.username || 'Administrator';
 
     // Update leave request status
     const updateQuery = `
@@ -277,7 +277,7 @@ router.get('/:id/quick-action', async (req, res) => {
 
     // Get user details and send notification
     const userQuery = `
-      SELECT u.email, u.full_name 
+      SELECT u.email, u.username 
       FROM users u
       WHERE u.id = $1
     `;
@@ -286,7 +286,7 @@ router.get('/:id/quick-action', async (req, res) => {
     if (userRows.length > 0) {
       await sendLeaveStatusUpdateEmail(
         userRows[0].email,
-        userRows[0].full_name,
+        userRows[0].username,
         rows[0],
         action,
         remarks,
@@ -357,14 +357,14 @@ router.post('/:id/quick-action', async (req, res) => {
 
     // Get admin user
     const adminQuery = `
-      SELECT u.id, u.full_name FROM users u
+      SELECT u.id, u.username FROM users u
       JOIN roles r ON u.role_id = r.id
       WHERE r.name = 'sysadmin'
       LIMIT 1
     `;
     const { rows: adminRows } = await pool.query(adminQuery);
     const adminId = adminRows[0]?.id || 1;
-    const adminName = adminRows[0]?.full_name || 'Administrator';
+    const adminName = adminRows[0]?.username || 'Administrator';
 
     // Update leave request status and dates
     const updateQuery = `
@@ -386,7 +386,7 @@ router.post('/:id/quick-action', async (req, res) => {
 
     // Get user details and send notification
     const userQuery = `
-      SELECT u.email, u.full_name 
+      SELECT u.email, u.username 
       FROM users u
       WHERE u.id = $1
     `;
@@ -395,7 +395,7 @@ router.post('/:id/quick-action', async (req, res) => {
     if (userRows.length > 0) {
       await sendLeaveStatusUpdateEmail(
         userRows[0].email,
-        userRows[0].full_name,
+        userRows[0].username,
         rows[0],
         action,
         remarks,
@@ -453,7 +453,7 @@ router.get('/:id/quick-action', async (req, res) => {
 
     // Get leave request details with user info
     const leaveQuery = `
-      SELECT lr.*, u.full_name as user_name, u.email as user_email
+      SELECT lr.*, u.username as user_name, u.email as user_email
       FROM leave_requests lr
       JOIN users u ON lr.user_id = u.id
       WHERE lr.id = $1

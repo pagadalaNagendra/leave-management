@@ -170,7 +170,7 @@ router.get('/history', authenticate, async (req, res) => {
     const { user_id, start_date, end_date } = req.query;
 
     let query = `
-      SELECT a.*, u.full_name as user_name
+      SELECT a.*, u.username as user_name
       FROM attendance a
       JOIN users u ON a.user_id = u.id
       WHERE 1=1

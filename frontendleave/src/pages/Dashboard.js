@@ -130,7 +130,7 @@ const Dashboard = () => {
   const downloadLeaveReport = () => {
     // Prepare data for Excel
     const excelData = userLeaveStats.map(userStat => ({
-      'Employee Name': userStat.full_name,
+      'Employee Name': userStat.username,
       'Email': userStat.email,
       'Designation': userStat.designation || '-',
       'Total Leave Requests': userStat.total_requests,
@@ -213,7 +213,7 @@ const Dashboard = () => {
                         stat.role !== 'admin' &&
                         stat.role !== 'sysadmin' &&
                         stat.role?.toLowerCase() !== 'administrator' &&
-                        stat.full_name?.toLowerCase() !== 'system administrator'
+                        stat.username?.toLowerCase() !== 'system administrator'
                     )}
                   >
                     <CartesianGrid strokeDasharray="3 3" />

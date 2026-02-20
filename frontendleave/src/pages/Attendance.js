@@ -336,7 +336,7 @@ const Attendance = () => {
           const userAttendance = {};
           allUsers.forEach(user => {
             userAttendance[user.id] = {
-              name: user.full_name,
+              name: user.username,
               days: {}
             };
           });
@@ -589,7 +589,7 @@ const Attendance = () => {
                               className="filter-option"
                               onClick={() => { setFilters({ ...filters, user_id: u.id }); setShowUserFilter(false); }}
                             >
-                              <span>{u.full_name}</span>
+                              <span>{u.username}</span>
                             </div>
                           ))}
                         </div>
@@ -688,7 +688,7 @@ const Attendance = () => {
                             checked={formData.user_ids.includes(u.id)}
                             onChange={() => handleUserToggle(u.id)}
                           />
-                          <span className="checkbox-text">{u.full_name}</span>
+                          <span className="checkbox-text">{u.username}</span>
                         </label>
                       ))}
                     </div>
