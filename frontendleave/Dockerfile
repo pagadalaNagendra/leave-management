@@ -1,15 +1,16 @@
-# Use the official Node.js image
-FROM node:18
-# Set the working directory
+FROM node:18 AS build
 WORKDIR /app
-# Copy package.json and package-lock.json
 COPY package*.json ./
-# Run npm install with --legacy-peer-deps to resolve dependency conflicts
-RUN npm install --legacy-peer-deps \
-    && npm install chart.js
-# Copy the rest of the application code
+RUN npm install --legacy-peer-deps && npm install chart.js
 COPY . .
-# Expose the port for the frontend
-EXPOSE 8288
-# Start the React development server on port 8288 and bind to 0.0.0.0
-CMD ["npx", "react-scripts", "start", "--host", "0.0.0.0", "--port", "8288"]
+# Clean old build output if exists
+RUN rm -rf build
+RUN npm run build
+# Ensure build output exists and index.html is present
+RUN if [ ! -f /app/build/index.html ]; then echo "Build failed: index.html missing" && exit 1; fi
+
+FROM nginx:1.25-alpine
+COPY --from=build /app/build/ /usr/share/nginx/html/leavemanagement/
+COPY nginx/default.conf /etc/nginx/conf.d/default.conf
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]

@@ -49,7 +49,6 @@ const sendWelcomeEmail = async (userEmail, username, password, fullName) => {
                 <p><strong>Platform URL:</strong> <a href="${process.env.APP_URL}">${process.env.APP_URL}</a></p>
               </div>
               
-              <p><strong>Important:</strong> Please change your password after your first login for security purposes.</p>
               
               <a href="${process.env.APP_URL}/login" class="button">Login to Your Account</a>
               

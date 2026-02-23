@@ -1,6 +1,7 @@
 {
   "name": "leave-management-frontend",
   "version": "1.0.0",
+    "homepage": "/leavemanagement",
   "private": true,
   "dependencies": {
     "axios": "^1.6.2",

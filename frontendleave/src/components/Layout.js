@@ -14,7 +14,7 @@ const Layout = ({ children }) => {
 
     const handleLogout = () => {
         logout();
-        navigate('/leavemanagement/login');
+        navigate('/login');
     };
 
     const toggleSidebar = () => {
@@ -79,7 +79,7 @@ const Layout = ({ children }) => {
 
     const handleNotificationClick = (leaveId) => {
         setShowNotifications(false);
-        navigate('/leavemanagement/leaves');
+        navigate('/leaves');
     };
 
     const markAsRead = (notificationId, event) => {
@@ -248,8 +248,8 @@ const Layout = ({ children }) => {
             <div className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
                 <nav className="sidebar-nav">
                     <Link
-                        to="/leavemanagement/dashboard"
-                        className={`nav-item ${isActive('/leavemanagement/dashboard')}`}
+                        to="/dashboard"
+                        className={`nav-item ${isActive('/dashboard')}`}
                         title="Dashboard"
                     >
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -262,8 +262,8 @@ const Layout = ({ children }) => {
                     </Link>
 
                     <Link
-                        to="/leavemanagement/leaves"
-                        className={`nav-item ${isActive('/leavemanagement/leaves')}`}
+                        to="/leaves"
+                        className={`nav-item ${isActive('/leaves')}`}
                         title="Leave Requests"
                     >
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -276,8 +276,8 @@ const Layout = ({ children }) => {
                     </Link>
 
                     <Link
-                        to="/leavemanagement/attendance"
-                        className={`nav-item ${isActive('/leavemanagement/attendance')}`}
+                        to="/attendance"
+                        className={`nav-item ${isActive('/attendance')}`}
                         title="Attendance"
                     >
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -290,8 +290,8 @@ const Layout = ({ children }) => {
 
                     {(user?.role === 'sysadmin' || user?.role === 'admin') && (
                         <Link
-                            to="/leavemanagement/users"
-                            className={`nav-item ${isActive('/leavemanagement/users')}`}
+                            to="/users"
+                            className={`nav-item ${isActive('/users')}`}
                             title="User Management"
                         >
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
