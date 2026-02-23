@@ -10,7 +10,10 @@ RUN npm install
 COPY . .
 # Ensure proper file permissions
 RUN chmod +x node_modules/.bin/nodemon
-# Expose the backend port (changing to match docker-compose port)
+# Expose the backend ports (HTTP and HTTPS)
 EXPOSE 5002
+EXPOSE 5443
 # Start the server with nodemon
 CMD ["npx", "nodemon", "server.js"]
+
+

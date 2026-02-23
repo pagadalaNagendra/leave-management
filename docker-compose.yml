@@ -6,7 +6,8 @@ services:
       context: ./backendleave
       dockerfile: Dockerfile
     ports:
-      - "8289:5002"
+      - "8289:5002"   # HTTP port
+      - "8289:5443"   # HTTPS port
     volumes:
       - ./backendleave:/app
       - /app/node_modules
@@ -18,6 +19,7 @@ services:
       DB_USER: postgres
       DB_PASSWORD: postgres
       DB_NAME: leave-management
+      HTTPS_PORT: 5002
     # Make sure container restarts on failure
     restart: unless-stopped
 

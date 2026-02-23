@@ -1,9 +1,14 @@
 import axios from 'axios';
 
-const API_URL = 'http://127.0.0.1:8289/api';
+// Use environment variable if available, otherwise fall back to HTTPS
+const API_URL = process.env.REACT_APP_API_URL || 'https://localhost:8443/api';
 
 const api = axios.create({
   baseURL: API_URL,
+  // For development with self-signed certificates
+  ...(process.env.NODE_ENV === 'development' && {
+    httpsAgent: undefined // Let browser handle certificate warnings
+  })
 });
 
 api.interceptors.request.use((config) => {

@@ -3,6 +3,62 @@ const pool = require('../config/database');
 const { authenticate, authorize } = require('../middleware/auth');
 const router = express.Router();
 
+// Public API - No authentication required
+router.get('/public-stats', async (req, res) => {
+  try {
+    // Basic system stats without sensitive information
+    const totalUsersQuery = 'SELECT COUNT(*) as total FROM users WHERE is_active = true';
+    const totalUsersResult = await pool.query(totalUsersQuery);
+    
+    const currentDate = new Date();
+    const currentYear = currentDate.getFullYear();
+    const currentMonth = currentDate.getMonth() + 1;
+    
+    // This year's total leave requests
+    const yearLeavesQuery = `
+      SELECT COUNT(*) as total 
+      FROM leave_requests 
+      WHERE EXTRACT(YEAR FROM start_date) = $1
+    `;
+    const yearLeavesResult = await pool.query(yearLeavesQuery, [currentYear]);
+    
+    // This month's attendance entries
+    const monthAttendanceQuery = `
+      SELECT COUNT(*) as total 
+      FROM attendance 
+      WHERE EXTRACT(MONTH FROM date) = $1 
+      AND EXTRACT(YEAR FROM date) = $2
+    `;
+    const monthAttendanceResult = await pool.query(monthAttendanceQuery, [currentMonth, currentYear]);
+    
+    // System info
+    const systemInfo = {
+      systemName: "Leave Management System",
+      version: "1.0.0",
+      status: "Active",
+      lastUpdated: new Date().toISOString().split('T')[0]
+    };
+
+    res.json({
+      system: systemInfo,
+      stats: {
+        totalActiveUsers: parseInt(totalUsersResult.rows[0].total),
+        yearlyLeaveRequests: parseInt(yearLeavesResult.rows[0].total),
+        monthlyAttendanceEntries: parseInt(monthAttendanceResult.rows[0].total),
+        currentYear: currentYear,
+        currentMonth: currentMonth
+      },
+      message: "Public stats - No authentication required"
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      message: 'Server error', 
+      error: error.message,
+      endpoint: 'public-stats'
+    });
+  }
+});
+
 // Dashboard stats for sysadmin and admin
 router.get('/stats', authenticate, authorize('sysadmin', 'admin'), async (req, res) => {
   try {

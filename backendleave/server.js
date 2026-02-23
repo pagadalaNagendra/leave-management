@@ -1,4 +1,7 @@
 const express = require('express');
+const https = require('https');
+const fs = require('fs');
+const path = require('path');
 const cors = require('cors');
 require('dotenv').config();
 
@@ -24,6 +27,13 @@ app.get('/health', (req, res) => {
 });
 
 const PORT = process.env.PORT || 5002;
+const HTTPS_PORT = process.env.HTTPS_PORT || 5443;
+
+// SSL Configuration
+const sslOptions = {
+  key: fs.readFileSync(path.join(__dirname, 'iiit.ac.in.key')),
+  cert: fs.readFileSync(path.join(__dirname, 'iiit.ac.in.pem'))
+};
 
 // Initialize database, sysadmin and start server
 const startServer = async () => {
@@ -31,9 +41,17 @@ const startServer = async () => {
     await initializeDatabase();
     await initializeSysAdmin();
     
-    app.listen(PORT, () => {
-      console.log(`🚀 Server running on port ${PORT}`);
+    // Start HTTPS server
+    https.createServer(sslOptions, app).listen(HTTPS_PORT, () => {
+      console.log(`🔒 HTTPS Server running on port ${HTTPS_PORT}`);
+      console.log(`🌐 Server accessible at https://smartcitylivinglab.iiit.ac.in:${HTTPS_PORT}`);
     });
+    
+    // Optionally keep HTTP server for development/health checks
+    app.listen(PORT, () => {
+      console.log(`🚀 HTTP Server running on port ${PORT}`);
+    });
+    
   } catch (error) {
     console.error('Failed to start server:', error);
     process.exit(1);
