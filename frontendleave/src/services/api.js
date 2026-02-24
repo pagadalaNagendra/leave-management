@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = 'http://127.0.0.1:8289/api';
+const API_URL = 'http://127.0.0.1:5002/api';
 
 const api = axios.create({
   baseURL: API_URL,
@@ -32,6 +32,12 @@ export const dashboardAPI = {
   getLeaveTrends: (year) => api.get(`/dashboard/leave-trends?year=${year}`),
   getLeaveTypeDistribution: (year) => api.get(`/dashboard/leave-type-distribution?year=${year}`),
   getAttendanceOverview: (year) => api.get(`/dashboard/attendance-overview?year=${year}`),
+  getWeeklyLateLogins: (year) => api.get(`/dashboard/weekly-late-logins?year=${year}`),
+  getUserLeaveTakenPendingExceed: (year) => api.get(`/dashboard/user-leave-taken-pending-exceed?year=${year}`),
+  getWeeklyLoginPattern: (year) => api.get(`/dashboard/weekly-login-pattern?year=${year}`),
+  getDailyLoginPattern: (year) => api.get(`/dashboard/daily-login-pattern?year=${year}`),
+  getDailyLogoutPattern: (year) => api.get(`/dashboard/daily-logout-pattern?year=${year}`),
+  getDashboardSummary: () => api.get('/dashboard/dashboard-summary'),
 };
 
 export const leaveAPI = {

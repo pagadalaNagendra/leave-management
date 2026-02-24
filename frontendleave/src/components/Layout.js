@@ -248,8 +248,8 @@ const Layout = ({ children }) => {
             <div className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
                 <nav className="sidebar-nav">
                     <Link
-                        to="/dashboard"
-                        className={`nav-item ${isActive('/dashboard')}`}
+                        to={user?.role === 'user' ? '/userdashboard' : '/dashboard'}
+                        className={`nav-item ${isActive(user?.role === 'user' ? '/userdashboard' : '/dashboard')}`}
                         title="Dashboard"
                     >
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

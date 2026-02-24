@@ -10,6 +10,7 @@ import UserManagement from './pages/UserManagement';
 import LeaveRequests from './pages/LeaveRequests';
 import Attendance from './pages/Attendance';
 import Layout from './components/Layout';
+import Userdashboard from './pages/Userdashboard';
 
 const PrivateRoute = ({ children, roles }) => {
   const { user, loading } = useAuth();
@@ -38,6 +39,8 @@ function App() {
 
           {/* User Management (protected) */}
           <Route path="/users" element={<PrivateRoute roles={['sysadmin', 'admin']}><UserManagement /></PrivateRoute>} />
+
+          <Route path="/userdashboard" element={<PrivateRoute><Userdashboard /></PrivateRoute>} />
 
           {/* Leave Requests (protected) */}
           <Route path="/leaves" element={<PrivateRoute><LeaveRequests /></PrivateRoute>} />

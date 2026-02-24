@@ -1,496 +1,471 @@
-import React, { useState, useEffect } from 'react';
-import { useAuth } from '../context/AuthContext';
+import React, { useEffect, useState } from 'react';
 import { dashboardAPI } from '../services/api';
-import { leaveAPI } from '../services/api';
-import * as XLSX from 'xlsx';
-import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import './Dashboard.css';
-import axios from 'axios';
+import {
+  BarChart, Bar, XAxis, YAxis,
+  Tooltip, Legend, ResponsiveContainer,
+  LineChart, Line, LabelList
+} from 'recharts';
+
+import {
+  FiUsers, FiClock, FiAlertCircle,
+  FiSettings, FiSun, FiMoon
+} from 'react-icons/fi';
 
 const Dashboard = () => {
-  const { user } = useAuth();
-  const [stats, setStats] = useState(null);
-  const [userSummary, setUserSummary] = useState(null);
-  const [userLeaveStats, setUserLeaveStats] = useState([]);
-  const [leaveTrends, setLeaveTrends] = useState([]);
-  const [leaveTypeDistribution, setLeaveTypeDistribution] = useState([]);
-  const [attendanceOverview, setAttendanceOverview] = useState([]);
+  const [leaveStats, setLeaveStats] = useState([]);
+  const [loginData, setLoginData] = useState([]);
+  const [loginView, setLoginView] = useState('last7'); // 'last7' or 'all'
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
-  const [monthlyLeaveDays, setMonthlyLeaveDays] = useState([]);
-  const [monthlyAttendance, setMonthlyAttendance] = useState([]);
-  const COLORS = ['#3498db', '#2ecc71', '#f39c12', '#e74c3c', '#9b59b6'];
+  const [loading, setLoading] = useState(true);
+  const [currentTime, setCurrentTime] = useState(new Date());
+  const [summary, setSummary] = useState({
+    totalEmployees: 0,
+    onTime: 0,
+    lateArrivals: 0,
+    earlyDepartures: 0
+  });
+  const [yesterdayStats, setYesterdayStats] = useState({
+    totalEmployees: null,
+    onTime: null,
+    lateArrivals: null,
+    earlyDepartures: null
+  });
+  // Early departure state
+  const [logoutData, setLogoutData] = useState([]);
+  const [logoutView, setLogoutView] = useState('last7');
 
-  // Generate year options (last 5 years + current year + next year)
+  const COLORS = ['#2f80ed', '#eb5757', '#27ae60', '#9b51e0', '#f2994a'];
+
   const currentYear = new Date().getFullYear();
   const yearOptions = Array.from({ length: 7 }, (_, i) => currentYear - 5 + i);
 
+  /* LIVE CLOCK */
   useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const formatTime = (date) =>
+    date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+  const formatDate = (date) =>
+    date.toLocaleDateString([], { day: 'numeric', month: 'long', year: 'numeric' });
+
+  const timeToMinutes = (time) => {
+    if (!time) return null;
+    const [h, m] = time.split(':').map(Number);
+    return h * 60 + m;
+  };
+
+  const minutesToTime = (min) => {
+    if (min == null) return '';
+    const h = Math.floor(min / 60);
+    const m = min % 60;
+    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+  };
+
+  /* FETCH DATA */
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+
+      try {
+        const { data } = await dashboardAPI.getUserLeaveTakenPendingExceed(selectedYear);
+        setLeaveStats(data || []);
+      } catch {
+        setLeaveStats([]);
+      }
+
+      let loginPatternData = [];
+      try {
+        const { data } = await dashboardAPI.getDailyLoginPattern(selectedYear);
+        const datesMap = {};
+        Object.entries(data || {}).forEach(([username, records]) => {
+          if (["sysadmin", "admin"].includes(username.toLowerCase()) && Object.keys(data).length > 1) return;
+          Object.entries(records).forEach(([date, time]) => {
+            if (!datesMap[date]) datesMap[date] = { date };
+            datesMap[date][username] = timeToMinutes(time);
+          });
+        });
+        const formatted = Object.values(datesMap).sort(
+          (a, b) => new Date(a.date) - new Date(b.date)
+        );
+        setLoginData(formatted);
+        loginPatternData = formatted;
+      } catch {
+        setLoginData([]);
+        loginPatternData = [];
+      }
+
+      // Fetch logout pattern for early departure
+      let logoutPatternData = [];
+      try {
+        const { data } = await dashboardAPI.getDailyLogoutPattern(selectedYear);
+        const datesMap = {};
+        Object.entries(data || {}).forEach(([username, records]) => {
+          if (["sysadmin", "admin"].includes(username.toLowerCase()) && Object.keys(data).length > 1) return;
+          Object.entries(records).forEach(([date, time]) => {
+            if (!datesMap[date]) datesMap[date] = { date };
+            // Early departure: before 18:30 (1110 min)
+            datesMap[date][username] = time ? timeToMinutes(time) : null;
+          });
+        });
+        const formatted = Object.values(datesMap).sort(
+          (a, b) => new Date(a.date) - new Date(b.date)
+        );
+        setLogoutData(formatted);
+        logoutPatternData = formatted;
+      } catch {
+        setLogoutData([]);
+        logoutPatternData = [];
+      }
+
+      try {
+        // Fetch dashboard summary using dashboardAPI
+        const { data } = await dashboardAPI.getDashboardSummary();
+        setSummary(data);
+      } catch {
+        setSummary({ totalEmployees: 0, onTime: 0, lateArrivals: 0, earlyDepartures: 0 });
+      }
+
+      // Calculate yesterday's stats
+      try {
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        const yDateStr = yesterday.toISOString().slice(0, 10);
+        // Find yesterday's login data
+        let yLogin = loginPatternData.find(d => d.date === yDateStr);
+        // If not found, try with +1 day offset (to match tickFormatter logic)
+        if (!yLogin) {
+          const altDate = new Date(yesterday);
+          altDate.setDate(altDate.getDate() - 1);
+          const altDateStr = altDate.toISOString().slice(0, 10);
+          yLogin = loginPatternData.find(d => d.date === altDateStr);
+        }
+        // For demo, just show number of users who have a value for that day as 'onTime', rest as 'lateArrivals'.
+        if (yLogin) {
+          const userTimes = Object.entries(yLogin).filter(([k]) => k !== 'date');
+          const total = userTimes.length;
+          // Let's say onTime is those who logged in <= 9:30 (570 min)
+          const onTime = userTimes.filter(([, v]) => v != null && v <= 570).length;
+          const late = userTimes.filter(([, v]) => v != null && v > 570).length;
+          setYesterdayStats({
+            totalEmployees: total,
+            onTime,
+            lateArrivals: late,
+            earlyDepartures: null // Not available from login pattern
+          });
+        } else {
+          setYesterdayStats({ totalEmployees: null, onTime: null, lateArrivals: null, earlyDepartures: null });
+        }
+      } catch {
+        setYesterdayStats({ totalEmployees: null, onTime: null, lateArrivals: null, earlyDepartures: null });
+      }
+
+      setLoading(false);
+    };
     fetchData();
   }, [selectedYear]);
 
-  const fetchData = async () => {
-    try {
-      if (user.role === 'sysadmin' || user.role === 'admin') {
-        const { data } = await dashboardAPI.getStats();
-        setStats(data);
 
-        const { data: leaveStats } = await dashboardAPI.getUserLeaveStats(selectedYear);
-        setUserLeaveStats(leaveStats);
+  const users =
+    loginData.length > 0
+      ? Object.keys(loginData[0]).filter(k => k !== 'date')
+      : [];
+  const logoutUsers =
+    logoutData.length > 0
+      ? Object.keys(logoutData[0]).filter(k => k !== 'date')
+      : [];
 
-        const { data: trends } = await dashboardAPI.getLeaveTrends(selectedYear);
-        setLeaveTrends(trends);
+  // Filter loginData for last 7 unique dates (not just last 7 records)
+  let loginDataFiltered = loginData;
+  if (loginView === 'last7' && loginData.length > 0) {
+    const allDates = loginData.map(d => d.date);
+    const last7Dates = allDates.slice(-7);
+    loginDataFiltered = loginData.filter(d => last7Dates.includes(d.date));
+  }
 
-        const { data: typeDistribution } = await dashboardAPI.getLeaveTypeDistribution(selectedYear);
-        setLeaveTypeDistribution(typeDistribution);
+  // Filter logoutData for last 7 unique dates
+  let logoutDataFiltered = logoutData;
+  if (logoutView === 'last7' && logoutData.length > 0) {
+    const allDates = logoutData.map(d => d.date);
+    const last7Dates = allDates.slice(-7);
+    logoutDataFiltered = logoutData.filter(d => last7Dates.includes(d.date));
+  }
 
-        const { data: attendance } = await dashboardAPI.getAttendanceOverview(selectedYear);
-        console.log('Attendance data received:', attendance);
-        setAttendanceOverview(attendance);
-      }
 
-      const { data: summary } = await dashboardAPI.getUserSummary();
-      setUserSummary(summary);
-    } catch (error) {
-      console.error('Error fetching dashboard data:', error);
-    }
-  };
-
-  const fetchMonthlyLeaveDays = async () => {
-    try {
-      // Use leaveAPI.getAll() which already handles auth and baseURL
-      const { data } = await leaveAPI.getAll();
-      const months = [
-        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
-      ];
-      const monthMap = {};
-      months.forEach((m, i) => { monthMap[i + 1] = { month: m, days: 0 }; });
-
-      data.forEach(leave => {
-        const start = new Date(leave.start_date);
-        const end = new Date(leave.end_date);
-        if (
-          leave.status === 'approved' &&
-          (!user || leave.user_id === user.id)
-        ) {
-          const monthNum = start.getMonth() + 1;
-          const days = Math.round((end - start) / (1000 * 60 * 60 * 24)) + 1;
-          if (monthMap[monthNum]) {
-            monthMap[monthNum].days += days;
-          }
-        }
-      });
-
-      setMonthlyLeaveDays(Object.values(monthMap));
-    } catch (error) {
-      console.error('Error fetching monthly leave days:', error);
-      setMonthlyLeaveDays([]);
-    }
-  };
-
-  const fetchMonthlyAttendance = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
-      const { data } = await axios.get('http://127.0.0.1:5002/api/attendance/history', config);
-      const months = [
-        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
-      ];
-      const monthMap = {};
-      months.forEach((m, i) => { monthMap[i + 1] = { month: m, present: 0, absent: 0 }; });
-
-      data.forEach(record => {
-        const date = new Date(record.date);
-        const monthNum = date.getMonth() + 1;
-        if (!user || record.user_id === user.id) {
-          if (record.status === 'present' && monthMap[monthNum]) {
-            monthMap[monthNum].present += 1;
-          }
-          if (record.status === 'absent' && monthMap[monthNum]) {
-            monthMap[monthNum].absent += 1;
-          }
-        }
-      });
-
-      setMonthlyAttendance(Object.values(monthMap));
-    } catch (error) {
-      console.error('Error fetching monthly attendance:', error);
-      setMonthlyAttendance([]);
-    }
-  };
-
-  useEffect(() => {
-    if (user.role === 'user') {
-      fetchMonthlyLeaveDays();
-      fetchMonthlyAttendance();
-    }
-  }, [selectedYear, user.role]);
-
-  const downloadLeaveReport = () => {
-    // Prepare data for Excel
-    const excelData = userLeaveStats.map(userStat => ({
-      'Employee Name': userStat.username,
-      'Email': userStat.email,
-      'Designation': userStat.designation || '-',
-      'Total Leave Requests': userStat.total_requests,
-      'Days Taken (Approved)': userStat.days_taken,
-      'Days Pending': userStat.days_pending,
-      'Total Days': parseInt(userStat.days_taken) + parseInt(userStat.days_pending)
-    }));
-
-    // Create worksheet
-    const ws = XLSX.utils.json_to_sheet(excelData);
-
-    // Set column widths
-    ws['!cols'] = [
-      { wch: 25 }, // Employee Name
-      { wch: 30 }, // Email
-      { wch: 20 }, // Designation
-      { wch: 20 }, // Total Leave Requests
-      { wch: 22 }, // Days Taken
-      { wch: 15 }, // Days Pending
-      { wch: 15 }  // Total Days
-    ];
-
-    // Create workbook and add worksheet
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Leave Statistics');
-
-    // Generate filename with current date
-    const today = new Date();
-    const filename = `Leave_Statistics_${today.getFullYear()}_${String(today.getMonth() + 1).padStart(2, '0')}_${String(today.getDate()).padStart(2, '0')}.xlsx`;
-
-    // Download file
-    XLSX.writeFile(wb, filename);
-  };
 
   return (
-    <div className="dashboard">
+    <div className="dashboard-container">
 
+      {/* HEADER */}
+      <div className="dashboard-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div className="breadcrumb"></div>
+        <select
+          value={selectedYear}
+          onChange={e => setSelectedYear(Number(e.target.value))}
+          style={{ minWidth: 120 }}
+        >
+          {yearOptions.map(year => (
+            <option key={year} value={year}>{year}</option>
+          ))}
+        </select>
+      </div>
 
-      {(user.role === 'sysadmin' || user.role === 'admin') && stats && (
-        <>
-          <div className="stats-grid">
-            <div className="stat-card">
-              <h3>Total Users</h3>
-              <p className="stat-value">{stats.totalUsers}</p>
+      {/* TOP WIDGETS */}
+      <div className="top-widgets">
+
+        <div className="time-card">
+          <FiSun className="time-icon" />
+          <div className="time">{formatTime(currentTime)}</div>
+          <div className="subtle">Realtime Insight</div>
+
+          <div className="today-label">Today:</div>
+          <div className="date">{formatDate(currentTime)}</div>
+        </div>
+
+        <div className="stats-grid">
+          <div className="stat-card">
+            <div>
+              <span>Total Employees</span>
+              <div style={{ fontWeight: 'bold', fontSize: 24, marginTop: 4 }}>{summary.totalEmployees}</div>
             </div>
-            <div className="stat-card">
-              <h3>Pending Requests</h3>
-              <p className="stat-value">{stats.pendingRequests}</p>
-            </div>
-            <div className="stat-card">
-              <h3>Yearly Leaves</h3>
-              <p className="stat-value">12</p>
-            </div>
+            <FiUsers className="card-icon blue" />
           </div>
 
-          {/* Analytics Section */}
-          <div className="analytics-section">
+          <div className="stat-card">
+            <div>
+              <span>On Time</span>
+              <div style={{ fontWeight: 'bold', fontSize: 24, marginTop: 4 }}>{summary.onTime}</div>
+            </div>
+            <FiClock className="card-icon green" />
+          </div>
 
-            <div className="analytics-grid">
-              {/* Leave Trends Chart */}
-              <div className="analytics-card">
-                <div className="card-header-with-selector">
-                  <h3>User Wise Leave Count</h3>
-                  <div className="year-selector">
-                    <select
-                      id="year-select"
-                      value={selectedYear}
-                      onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-                    >
-                      {yearOptions.map(year => (
-                        <option key={year} value={year}>{year}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart
-                    data={userLeaveStats.filter(
-                      stat =>
-                        stat.role !== 'admin' &&
-                        stat.role !== 'sysadmin' &&
-                        stat.role?.toLowerCase() !== 'administrator' &&
-                        stat.username?.toLowerCase() !== 'system administrator'
-                    )}
+          <div className="stat-card">
+            <div>
+              <span>Late Arrival</span>
+              <div style={{ fontWeight: 'bold', fontSize: 24, marginTop: 4 }}>{summary.lateArrivals}</div>
+            </div>
+            <FiAlertCircle className="card-icon red" />
+          </div>
+
+          <div className="stat-card">
+            <div>
+              <span>
+                Early Departures<span className="stat-subtext">  (Yesterday)</span>
+                {yesterdayStats.earlyDepartures !== null && (
+                  <span style={{ marginLeft: 8, fontSize: 12, color: '#b3b8c5', fontWeight: 400 }}>
+                    (yest: {yesterdayStats.earlyDepartures})
+                  </span>
+                )}
+              </span>
+              <div style={{ fontWeight: 'bold', fontSize: 24, marginTop: 4 }}>{summary.earlyDepartures}</div>
+            </div>
+            <FiMoon className="card-icon purple" />
+          </div>
+        </div>
+      </div>
+
+      {/* TWO CHARTS */}
+      <div className="charts-row">
+        {/* Leave Summary Chart */}
+        <div className="chart-card small" style={{ background: '#101c2c' }}>
+          <h3 style={{ marginBottom: 18 }}>User-wise Leave Summary</h3>
+          {loading || leaveStats.length === 0 ? (
+            <div className="placeholder">No leave data</div>
+          ) : (
+            <ResponsiveContainer width="100%" height={280}>
+              <BarChart data={leaveStats} barGap={6} barCategoryGap={18}>
+                <XAxis dataKey="username" tick={{ fill: '#b3b8c5', fontSize: 13 }} axisLine={{ stroke: '#222a3a' }} tickLine={false} />
+                <YAxis tick={{ fill: '#b3b8c5', fontSize: 13 }} axisLine={{ stroke: '#222a3a' }} tickLine={false} grid={{ stroke: '#222a3a', strokeDasharray: '3 3' }} />
+                <Tooltip
+                  contentStyle={{ background: '#181f2e', border: 'none', borderRadius: 10, color: '#fff' }}
+                  labelStyle={{ color: '#2f80ed', fontWeight: 'bold' }}
+                  itemStyle={{ color: '#fff' }}
+                  cursor={{ fill: '#222a3a', opacity: 0.2 }}
+                />
+                <Legend iconType="circle" wrapperStyle={{ color: '#b3b8c5', fontSize: 13 }} />
+                <Bar dataKey="days_taken" stackId="a" fill="#2f80ed" radius={[8, 8, 0, 0]} />
+                <Bar dataKey="days_pending" stackId="a" fill="#f2994a" radius={[8, 8, 0, 0]} />
+                <Bar dataKey="limit_exceed" stackId="a" fill="#eb5757" radius={[8, 8, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+
+        {/* Late Arrival Chart */}
+        <div className="chart-card small" style={{ background: '#101c2c' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
+            <h3 style={{ marginBottom: 0 }}>Late Arrival summary</h3>
+            <select
+              value={loginView}
+              onChange={e => setLoginView(e.target.value)}
+              style={{ background: '#181f2e', color: '#b3b8c5', border: 'none', borderRadius: 8, padding: '6px 12px', fontSize: 13 }}
+            >
+              <option value="last7">Last 7 Days</option>
+              <option value="all">All Days</option>
+            </select>
+          </div>
+          {loginDataFiltered.length === 0 ? (
+            <div className="placeholder">No login data</div>
+          ) : (
+            <ResponsiveContainer width="100%" height={280}>
+              <LineChart data={loginDataFiltered} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+                <XAxis
+                  dataKey="date"
+                  tick={{ fill: '#b3b8c5', fontSize: 13 }}
+                  axisLine={{ stroke: '#222a3a' }}
+                  tickLine={false}
+                  tickFormatter={date => {
+                    if (!date) return '';
+                    const d = new Date(date);
+                    d.setDate(d.getDate() + 1);
+                    return d.toISOString().slice(0, 10);
+                  }}
+                />
+                <YAxis
+                  domain={[0, 1440]}
+                  tickFormatter={v => Math.floor(v / 60)}
+                  ticks={[0, 60, 120, 180, 240, 300, 360, 420, 480, 540, 600, 660, 720, 780, 840, 900, 960, 1020, 1080, 1140, 1200, 1260, 1320, 1380, 1440]}
+                  tick={{ fill: '#b3b8c5', fontSize: 13 }}
+                  axisLine={{ stroke: '#222a3a' }}
+                  tickLine={false}
+                  grid={{ stroke: '#222a3a', strokeDasharray: '3 3' }}
+                  label={{ value: 'Hour', angle: -90, position: 'insideLeft', fill: '#b3b8c5', fontSize: 13 }}
+                />
+                <Tooltip
+                  formatter={minutesToTime}
+                  contentStyle={{ background: '#181f2e', border: 'none', borderRadius: 10, color: '#fff' }}
+                  labelStyle={{ color: '#2f80ed', fontWeight: 'bold' }}
+                  itemStyle={{ color: '#fff' }}
+                  cursor={{ fill: '#222a3a', opacity: 0.2 }}
+                  labelFormatter={date => {
+                    if (!date) return '';
+                    const d = new Date(date);
+                    d.setDate(d.getDate() + 1);
+                    return d.toISOString().slice(0, 10);
+                  }}
+                />
+                {users.map((user, index) => (
+                  <Line
+                    key={user}
+                    type="monotone"
+                    dataKey={user}
+                    stroke={COLORS[index % COLORS.length]}
+                    strokeWidth={3}
+                    dot={false}
+                    activeDot={{ r: 6 }}
                   >
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="username" label={{ value: 'Username', position: 'insideBottom', offset: -5 }} />
-                    <YAxis
-                      type="number"
-                      label={{ value: 'Days Taken', angle: -90, position: 'insideLeft' }}
-                      allowDecimals={false}
-                    />
-                    <Tooltip cursor={false} />
-                    <Legend />
-                    <Bar dataKey="days_taken" fill="#3498db" name="Days Taken" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-
-              {/* Leave Type Distribution */}
-              <div className="analytics-card">
-                <h3>Leaves Status</h3>
-                <ResponsiveContainer width="100%" height={300}>
-                  <PieChart>
-                    <Pie
-                      data={leaveTypeDistribution}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      outerRadius={90}
-                      fill="#8884d8"
-                      dataKey="count"
-                      nameKey="status"
-                      activeShape={null}
-                    >
-                      {leaveTypeDistribution.map((entry, index) => (
-                        <Cell
-                          key={`cell-${index}`}
-                          fill={
-                            entry.status === 'Total Requests' ? '#3498db' :
-                              entry.status === 'Pending' ? '#f39c12' :
-                                entry.status === 'Approved' ? '#2ecc71' :
-                                  '#e74c3c'
-                          }
-                        />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                    <Legend />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-
-              {/* Attendance Overview */}
-              <div className="analytics-card">
-                <div className="card-header-with-selector">
-                  <h3>Employee wise Attendance </h3>
-                </div>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={attendanceOverview
-                    .filter(item =>
-                      item.user_name &&
-                      item.user_name.toLowerCase() !== 'sysadmin' &&
-                      item.user_name.toLowerCase() !== 'system administrator'
-                    )
-                    .map((item, index) => ({
-                      ...item,
-                      index: index + 1,
-                      present_percent: Number(item.present_percent) || 0,
-                      absent_percent: Number(item.absent_percent) || 0
-                    }))}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="user_name" label={{ value: 'Username', position: 'insideBottom', offset: -5 }} />
-                    <YAxis
-                      label={{ value: 'Attendance (%)', angle: -90, position: 'insideLeft' }}
-                      domain={[0, 100]}
-                      ticks={[0, 20, 40, 60, 80, 100]}
-                    />
-                    <Tooltip
-                      cursor={false}
-                      contentStyle={{
-                        backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                        border: '1px solid #ccc',
-                        borderRadius: '4px',
-                        padding: '10px'
-                      }}
-                      formatter={(value, name, props) => {
-                        const label = props.dataKey === 'present_percent' ? 'Present (%)' : 'Absent (%)';
-                        return [`${value}%`, label];
-                      }}
-                      labelFormatter={(value) => {
-                        return value ? `Username: ${value}` : '';
+                    <LabelList
+                      dataKey={user}
+                      position="top"
+                      formatter={minutesToTime}
+                      fill={COLORS[index % COLORS.length]}
+                      fontSize={11}
+                      content={({ x, y, value }) => {
+                        if (value == null) return null;
+                        return (
+                          <text x={x} y={y - 6} textAnchor="middle" fill={COLORS[index % COLORS.length]} fontSize="11">
+                            {minutesToTime(value)}
+                          </text>
+                        );
                       }}
                     />
-                    <Legend />
-                    <Bar dataKey="present_percent" fill="#2ecc71" name="Present (%)" />
-                    <Bar dataKey="absent_percent" fill="#e74c3c" name="Absent (%)" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-          </div>
-        </>
-      )}
-
-      {user.role === 'user' && userSummary && (
-        <>
-          <div className="stats-grid user-stats-grid">
-            <div className="stat-card">
-              <h3>Total Leaves</h3>
-              <p className="stat-value">{userSummary.totalLeaveDays}</p>
-            </div>
-            <div className="stat-card">
-              <h3>Present Days</h3>
-              <p className="stat-value">{userSummary.totalPresent}</p>
-            </div>
-            <div className="stat-card">
-              <h3>Absent Days</h3>
-              <p className="stat-value">{userSummary.totalAbsences}</p>
-            </div>
-            <div className="stat-card">
-              <h3>Pending Requests</h3>
-              <p className="stat-value">{userSummary.pendingRequests}</p>
-            </div>
-            <div className="stat-card">
-              <h3>Yearly Leaves</h3>
-              <p className="stat-value">12</p>
-            </div>
-          </div>
-
-          <div className="analytics-section">
-            <div className="analytics-grid user-analytics-grid">
-
-              {/* Month Wise Leave Taken History */}
-              <div className="analytics-card">
-                <h3>Month Wise Leave Taken</h3>
-                <div style={{ width: "100%", minWidth: 0 }}>
-                  <ResponsiveContainer width="100%" height={180}>
-                    <BarChart data={monthlyLeaveDays}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="month" />
-                      <YAxis allowDecimals={false} />
-                      <Tooltip />
-                      <Legend />
-                      <Bar dataKey="days" fill="#3498db" name="Leave Days" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-              {/* Leave Status Pie Chart */}
-              <div className="analytics-card">
-                <h3>Leave Status Distribution</h3>
-                <div style={{ width: "100%", minWidth: 0 }}>
-                  <ResponsiveContainer width="100%" height={180}>
-                    <PieChart>
-                      <Pie
-                        data={[
-                          { name: 'Approved', value: userSummary.totalLeaves },
-                          { name: 'Pending', value: userSummary.pendingRequests },
-                          { name: 'Rejected', value: userSummary.totalRejected || 0 }
-                        ]}
-                        cx="50%"
-                        cy="50%"
-                        outerRadius={60}
-                        dataKey="value"
-                        label
-                      >
-                        <Cell key="approved" fill="#2ecc71" />
-                        <Cell key="pending" fill="#f39c12" />
-                        <Cell key="rejected" fill="#e74c3c" />
-                      </Pie>
-                      <Tooltip />
-                      <Legend />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-
-              {/* Month Wise Attendance Present & Absent */}
-              <div className="analytics-card">
-                <h3>Month Wise Attendance</h3>
-                <div style={{ width: "100%", minWidth: 0 }}>
-                  <ResponsiveContainer width="100%" height={180}>
-                    <BarChart data={monthlyAttendance}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="month" />
-                      <YAxis allowDecimals={false} />
-                      <Tooltip />
-                      <Legend />
-                      <Bar dataKey="present" fill="#2ecc71" name="Present Days" />
-                      <Bar dataKey="absent" fill="#e74c3c" name="Absent Days" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            </div>
-          </div>
-        </>
-      )}
-
-      {user.role === 'user' && userSummary && (
-        <div className="user-leave-stats">
-          <h2>Leave Statistics</h2>
-          <table className="stats-table">
-            <thead>
-              <tr>
-                <th>Category</th>
-                <th>Total Requests</th>
-                <th>Days Taken</th>
-                <th>Days Pending</th>
-                <th>Total Days</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td><strong>This Year</strong></td>
-                <td className="text-center">{userSummary.totalLeaves + (userSummary.pendingRequests || 0)}</td>
-                <td className="text-center">
-                  <span className="badge badge-success">{userSummary.totalLeaveDays} days</span>
-                </td>
-                <td className="text-center">
-                  <span className="badge badge-warning">{userSummary.pendingDays || 0} days</span>
-                </td>
-                <td className="text-center">
-                  <strong>{userSummary.totalLeaveDays + (userSummary.pendingDays || 0)} days</strong>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+                  </Line>
+                ))}
+              </LineChart>
+            </ResponsiveContainer>
+          )}
         </div>
-      )}
 
-      {(user.role === 'sysadmin' || user.role === 'admin') && userLeaveStats.length > 0 && (
-        <div className="user-leave-stats">
-          <div className="stats-header">
-            <h2>Employee Leave Statistics</h2>
-            <button onClick={downloadLeaveReport} className="btn-download">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                <polyline points="7 10 12 15 17 10"></polyline>
-                <line x1="12" y1="15" x2="12" y2="3"></line>
-              </svg>
-            </button>
+        {/* Early Departure Chart */}
+        <div className="chart-card small" style={{ background: '#101c2c' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
+            <h3 style={{ marginBottom: 0 }}>Early Departure summary</h3>
+            <select
+              value={logoutView}
+              onChange={e => setLogoutView(e.target.value)}
+              style={{ background: '#181f2e', color: '#b3b8c5', border: 'none', borderRadius: 8, padding: '6px 12px', fontSize: 13 }}
+            >
+              <option value="last7">Last 7 Days</option>
+              <option value="all">All Days</option>
+            </select>
           </div>
-          <table className="stats-table">
-            <thead>
-              <tr>
-                <th>Username</th>
-                <th>Designation</th>
-                <th>Total Requests</th>
-                <th>Days Taken</th>
-                <th>Days Pending</th>
-                <th>Total Days</th>
-              </tr>
-            </thead>
-            <tbody>
-              {userLeaveStats.map((userStat) => (
-                <tr key={userStat.id}>
-                  <td>
-                    <div className="user-info">
-                      <strong>{userStat.username}</strong>
-                    </div>
-                  </td>
-                  <td>{userStat.designation || '-'}</td>
-                  <td className="text-center">{userStat.total_requests}</td>
-                  <td className="text-center">
-                    <span className="badge badge-success">{userStat.days_taken} days</span>
-                  </td>
-                  <td className="text-center">
-                    <span className="badge badge-warning">{userStat.days_pending} days</span>
-                  </td>
-                  <td className="text-center">
-                    <strong>{parseInt(userStat.days_taken) + parseInt(userStat.days_pending)} days</strong>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          {logoutDataFiltered.length === 0 ? (
+            <div className="placeholder">No logout data</div>
+          ) : (
+            <ResponsiveContainer width="100%" height={280}>
+              <LineChart data={logoutDataFiltered} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+                <XAxis
+                  dataKey="date"
+                  tick={{ fill: '#b3b8c5', fontSize: 13 }}
+                  axisLine={{ stroke: '#222a3a' }}
+                  tickLine={false}
+                  tickFormatter={date => {
+                    if (!date) return '';
+                    const d = new Date(date);
+                    d.setDate(d.getDate() + 1);
+                    return d.toISOString().slice(0, 10);
+                  }}
+                />
+                <YAxis
+                  domain={[0, 1440]}
+                  tickFormatter={v => Math.floor(v / 60)}
+                  ticks={[0, 60, 120, 180, 240, 300, 360, 420, 480, 540, 600, 660, 720, 780, 840, 900, 960, 1020, 1080, 1140, 1200, 1260, 1320, 1380, 1440]}
+                  tick={{ fill: '#b3b8c5', fontSize: 13 }}
+                  axisLine={{ stroke: '#222a3a' }}
+                  tickLine={false}
+                  grid={{ stroke: '#222a3a', strokeDasharray: '3 3' }}
+                  label={{ value: 'Hour', angle: -90, position: 'insideLeft', fill: '#b3b8c5', fontSize: 13 }}
+                />
+                <Tooltip
+                  formatter={minutesToTime}
+                  contentStyle={{ background: '#181f2e', border: 'none', borderRadius: 10, color: '#fff' }}
+                  labelStyle={{ color: '#f2994a', fontWeight: 'bold' }}
+                  itemStyle={{ color: '#fff' }}
+                  cursor={{ fill: '#222a3a', opacity: 0.2 }}
+                  labelFormatter={date => {
+                    if (!date) return '';
+                    const d = new Date(date);
+                    d.setDate(d.getDate() + 1);
+                    return d.toISOString().slice(0, 10);
+                  }}
+                />
+                {logoutUsers.map((user, index) => (
+                  <Line
+                    key={user}
+                    type="monotone"
+                    dataKey={user}
+                    stroke={COLORS[index % COLORS.length]}
+                    strokeWidth={3}
+                    dot={false}
+                    activeDot={{ r: 6 }}
+                  >
+                    <LabelList
+                      dataKey={user}
+                      position="top"
+                      formatter={minutesToTime}
+                      fill={COLORS[index % COLORS.length]}
+                      fontSize={11}
+                      content={({ x, y, value }) => {
+                        if (value == null) return null;
+                        return (
+                          <text x={x} y={y - 6} textAnchor="middle" fill={COLORS[index % COLORS.length]} fontSize="11">
+                            {minutesToTime(value)}
+                          </text>
+                        );
+                      }}
+                    />
+                  </Line>
+                ))}
+              </LineChart>
+            </ResponsiveContainer>
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 };
