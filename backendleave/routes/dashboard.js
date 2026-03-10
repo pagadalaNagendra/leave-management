@@ -205,4 +205,61 @@ router.get('/user-leave-taken-pending-exceed', authenticate, authorize('sysadmin
 });
 
 
+
+// Dashboard: leaves and attendance summary for current user
+router.get('/user-dashboard-summary', authenticate, async (req, res) => {
+  try {
+    // Get user id and role
+    const userId = req.user.id;
+    const role = req.user.role_name;
+    const year = new Date().getFullYear();
+    const yearlyLimit = 12; // You can make this dynamic if needed
+
+    // If admin/sysadmin, allow query param for userId
+    let targetUserId = userId;
+    if ((role === 'admin' || role === 'sysadmin') && req.query.userId) {
+      targetUserId = req.query.userId;
+    }
+
+    // Total leaves taken (approved)
+    const leavesTakenQuery = `
+      SELECT COALESCE(SUM(lr.end_date - lr.start_date + 1), 0) as total_taken
+      FROM leave_requests lr
+      WHERE lr.user_id = $1 AND lr.status = 'approved' AND EXTRACT(YEAR FROM lr.start_date) = $2
+    `;
+    const leavesTakenResult = await pool.query(leavesTakenQuery, [targetUserId, year]);
+    const totalLeavesTaken = parseInt(leavesTakenResult.rows[0].total_taken) || 0;
+
+    // Leave remaining
+    const leaveRemaining = Math.max(yearlyLimit - totalLeavesTaken, 0);
+
+    // Total late arrivals (login_time > 10:30)
+    const lateArrivalQuery = `
+      SELECT COUNT(*) as count
+      FROM attendance a
+      WHERE a.user_id = $1 AND a.status = 'present' AND EXTRACT(YEAR FROM a.date) = $2 AND a.login_time::time > '10:30:00'::time
+    `;
+    const lateArrivalResult = await pool.query(lateArrivalQuery, [targetUserId, year]);
+    const totalLateArrivals = parseInt(lateArrivalResult.rows[0].count) || 0;
+
+    // Total early departures (logout_time < 18:30)
+    const earlyDepartureQuery = `
+      SELECT COUNT(*) as count
+      FROM attendance a
+      WHERE a.user_id = $1 AND a.status = 'present' AND EXTRACT(YEAR FROM a.date) = $2 AND a.logout_time IS NOT NULL AND a.logout_time::time < '18:30:00'::time
+    `;
+    const earlyDepartureResult = await pool.query(earlyDepartureQuery, [targetUserId, year]);
+    const totalEarlyDepartures = parseInt(earlyDepartureResult.rows[0].count) || 0;
+
+    res.json({
+      totalLeavesTaken,
+      leaveRemaining,
+      totalLateArrivals,
+      totalEarlyDepartures
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
 module.exports = router;

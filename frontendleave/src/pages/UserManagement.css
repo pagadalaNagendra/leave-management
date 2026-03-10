@@ -1,8 +1,20 @@
+body, .user-management {
+  background: #FFFFFF !important;
+}
+.users-table td {
+  background-color: #FFFFFF !important;
+  color: #000 !important;
+  border-bottom: 1px solid #e0e0e0 !important;
+}
+/* Make all headings black */
+h1, h2, h3, h4, h5, h6 {
+  color: #000 !important;
+}
 .user-management {
-  background: white;
+  /* background: #000000; */
   padding: 2rem;
   border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  /* box-shadow: 0 2px 8px rgba(0,0,0,0.1); */
 }
 
 .header {
@@ -10,6 +22,8 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 2rem;
+  border-bottom: 2px solid #e0e0e0;
+  padding-bottom: 1rem;
 }
 
 .header h1 {
@@ -30,14 +44,22 @@
 
 .users-table {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
+  background: #fff;
+  border: 2px solid #e0e0e0;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
 }
 
 .users-table th,
 .users-table td {
   padding: 1rem;
   text-align: left;
-  border-bottom: 1px solid #ecf0f1;
+}
+.users-table tr:last-child td {
+  border-bottom: none !important;
 }
 
 .users-table th:last-child,
@@ -46,9 +68,10 @@
 }
 
 .users-table th {
-  background-color: #f8f9fa;
+  background-color: #FFFFFF !important;
   font-weight: 600;
-  color: #2c3e50;
+  color: #000 !important;
+  border-bottom: 2.5px solid #bfc9d9 !important;
 }
 
 .role-badge {
@@ -211,7 +234,8 @@
 }
 
 .modal-content {
-  background: white;
+  background: #181f2e;
+  color: #fff;
   padding: 2rem;
   border-radius: 8px;
   width: 90%;
@@ -281,6 +305,7 @@
   grid-template-columns: 1fr 1fr;
   gap: 1rem;
 }
+
 
 @media (max-width: 768px) {
   .form-row {

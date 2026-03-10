@@ -1,0 +1,46 @@
+table td,
+.attendance-table td,
+.leaves-table td {
+    background-color: #FFFFFF !important;
+    color: #000 !important;
+    border-bottom: 1px solid #E0E0E0 !important;
+    border-left: none !important;
+    border-right: none !important;
+    border-top: none !important;
+}
+
+/* Make all headings white */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    color: #000 !important;
+}
+
+body,
+.homepage,
+.dashboard-container,
+.attendance,
+.leave-requests {
+    background: #FFFFFF !important;
+    color: #000 !important;
+}
+
+table th,
+.attendance-table th,
+.leaves-table th {
+    background-color: #FFFFFF !important;
+    color: #000 !important;
+    border-bottom: 2px solid #E0E0E0 !important;
+    border-left: none !important;
+    border-right: none !important;
+    border-top: none !important;
+}
+
+.homepage {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}

@@ -1,10 +1,36 @@
-.dashboard-container {
+.dashboard-container table td,
+.dashboard-container .attendance-table td,
+.dashboard-container .leaves-table td {
+  background-color: #FFFFFF !important;
+  color: #000 !important;
+  border-bottom: 1px solid #222a3a;
+}
+
+/* Make all headings white */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  color: #000 !important;
+}
+
+.dashboard-container,
+body {
   padding: 20px;
-  background: #FFFFFF;
-  color: white;
+  background: #FFFFFF !important;
+  color: #000 !important;
   min-height: 90vh;
   border-radius: 20px;
   font-family: 'Inter', sans-serif;
+}
+
+.dashboard-container table th,
+.dashboard-container .attendance-table th,
+.dashboard-container .leaves-table th {
+  background-color: #FFFFFF !important;
+  color: #000 !important;
 }
 
 .dashboard-header {
@@ -19,8 +45,8 @@
 }
 
 select {
-  background: #111827;
-  color: white;
+  /* background: #111827; */
+  color: rgb(15, 14, 14);
   border: none;
   padding: 8px 12px;
   border-radius: 8px;
@@ -35,10 +61,11 @@ select {
 
 .time-card {
   width: 260px;
-  background: linear-gradient(145deg, #111827, #0b1220);
+  background: #FFFFFF !important;
   border-radius: 16px;
   padding: 20px;
-  box-shadow: 0 0 25px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 0 25px rgba(0, 0, 0, 0.06);
+  color: #000 !important;
 }
 
 .time-icon {
@@ -89,14 +116,15 @@ select {
 }
 
 .stat-card {
-  background: linear-gradient(145deg, #111827, #0b1220);
+  background: #FFFFFF !important;
   border-radius: 16px;
   padding: 18px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  box-shadow: 0 0 25px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 0 25px rgba(0, 0, 0, 0.06);
   transition: 0.3s;
+  color: #000 !important;
 }
 
 .stat-card:hover {
@@ -126,11 +154,12 @@ select {
 /* CHARTS */
 .chart-card {
   margin-top: 20px;
-  background: linear-gradient(145deg, #111827, #0b1220);
+  background: #FFFFFF !important;
   border-radius: 16px;
   padding: 20px;
-  box-shadow: 0 0 25px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 0 25px rgba(0, 0, 0, 0.06);
   transition: 0.3s;
+  color: #000 !important;
 }
 
 .chart-card:hover {

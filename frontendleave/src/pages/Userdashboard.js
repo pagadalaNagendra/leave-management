@@ -2,10 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { dashboardAPI } from '../services/api';
 import './Userdashboard.css';
 import {
+
   BarChart, Bar, XAxis, YAxis,
   Tooltip, Legend, ResponsiveContainer,
   LineChart, Line, LabelList
 } from 'recharts';
+
+import { leaveAPI } from '../services/api';
 
 import {
   FiUsers, FiClock, FiAlertCircle,
@@ -13,17 +16,20 @@ import {
 } from 'react-icons/fi';
 
 const Userdashboard = () => {
+  // Leave history state
+  const [leaveHistory, setLeaveHistory] = useState([]);
+  const [leaveHistoryLoading, setLeaveHistoryLoading] = useState(true);
   const [leaveStats, setLeaveStats] = useState([]);
   const [loginData, setLoginData] = useState([]);
   const [loginView, setLoginView] = useState('last7'); // 'last7' or 'all'
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [loading, setLoading] = useState(true);
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [summary, setSummary] = useState({
-    totalEmployees: 0,
-    onTime: 0,
-    lateArrivals: 0,
-    earlyDepartures: 0
+  const [userSummary, setUserSummary] = useState({
+    totalLeavesTaken: 0,
+    leaveRemaining: 0,
+    totalLateArrivals: 0,
+    totalEarlyDepartures: 0
   });
   const [yesterdayStats, setYesterdayStats] = useState({
     totalEmployees: null,
@@ -46,6 +52,22 @@ const Userdashboard = () => {
       setCurrentTime(new Date());
     }, 1000);
     return () => clearInterval(timer);
+  }, []);
+
+  // Fetch leave history from API using axios (with token)
+  useEffect(() => {
+    const fetchLeaveHistory = async () => {
+      setLeaveHistoryLoading(true);
+      try {
+        const res = await leaveAPI.getAll();
+        const data = res.data;
+        setLeaveHistory(Array.isArray(data) ? data : []);
+      } catch {
+        setLeaveHistory([]);
+      }
+      setLeaveHistoryLoading(false);
+    };
+    fetchLeaveHistory();
   }, []);
 
   const formatTime = (date) =>
@@ -123,12 +145,22 @@ const Userdashboard = () => {
         logoutPatternData = [];
       }
 
+      // Fetch user dashboard summary (leaves, late, early)
       try {
-        // Fetch dashboard summary using dashboardAPI
-        const { data } = await dashboardAPI.getDashboardSummary();
-        setSummary(data);
+        const { data } = await dashboardAPI.getUserDashboardSummary();
+        setUserSummary(data || {
+          totalLeavesTaken: 0,
+          leaveRemaining: 0,
+          totalLateArrivals: 0,
+          totalEarlyDepartures: 0
+        });
       } catch {
-        setSummary({ totalEmployees: 0, onTime: 0, lateArrivals: 0, earlyDepartures: 0 });
+        setUserSummary({
+          totalLeavesTaken: 0,
+          leaveRemaining: 0,
+          totalLateArrivals: 0,
+          totalEarlyDepartures: 0
+        });
       }
 
       // Calculate yesterday's stats
@@ -217,21 +249,11 @@ const Userdashboard = () => {
 
       {/* TOP WIDGETS */}
       <div className="top-widgets">
-
-        <div className="time-card">
-          <FiSun className="time-icon" />
-          <div className="time">{formatTime(currentTime)}</div>
-          <div className="subtle">Realtime Insight</div>
-
-          <div className="today-label">Today:</div>
-          <div className="date">{formatDate(currentTime)}</div>
-        </div>
-
         <div className="stats-grid">
           <div className="stat-card">
             <div>
               <span>Leaves Taken</span>
-              <div style={{ fontWeight: 'bold', fontSize: 24, marginTop: 4 }}>{summary.totalEmployees}</div>
+              <div style={{ fontWeight: 'bold', fontSize: 24, marginTop: 4 }}>{userSummary.totalLeavesTaken}</div>
             </div>
             <FiUsers className="card-icon blue" />
           </div>
@@ -239,7 +261,7 @@ const Userdashboard = () => {
           <div className="stat-card">
             <div>
               <span>Leave Remaining</span>
-              <div style={{ fontWeight: 'bold', fontSize: 24, marginTop: 4 }}>{summary.onTime}</div>
+              <div style={{ fontWeight: 'bold', fontSize: 24, marginTop: 4 }}>{userSummary.leaveRemaining}</div>
             </div>
             <FiClock className="card-icon green" />
           </div>
@@ -247,7 +269,7 @@ const Userdashboard = () => {
           <div className="stat-card">
             <div>
               <span>Total Late Arrival</span>
-              <div style={{ fontWeight: 'bold', fontSize: 24, marginTop: 4 }}>{summary.lateArrivals}</div>
+              <div style={{ fontWeight: 'bold', fontSize: 24, marginTop: 4 }}>{userSummary.totalLateArrivals}</div>
             </div>
             <FiAlertCircle className="card-icon red" />
           </div>
@@ -262,7 +284,7 @@ const Userdashboard = () => {
                   </span>
                 )}
               </span>
-              <div style={{ fontWeight: 'bold', fontSize: 24, marginTop: 4 }}>{summary.earlyDepartures}</div>
+              <div style={{ fontWeight: 'bold', fontSize: 24, marginTop: 4 }}>{userSummary.totalEarlyDepartures}</div>
             </div>
             <FiMoon className="card-icon purple" />
           </div>
@@ -273,33 +295,65 @@ const Userdashboard = () => {
       <div className="dashboard-two-col" style={{ display: 'flex', gap: 24, alignItems: 'flex-start' }}>
         {/* LEFT: Leave Summary Chart */}
         <div style={{ flex: 1, minWidth: 320 }}>
-          <div className="chart-card small" style={{ background: '#101c2c', marginBottom: 24 }}>
-            <h3 style={{ marginBottom: 18 }}>Leave History</h3>
-            {loading || leaveStats.length === 0 ? (
-              <div className="placeholder">No leave data</div>
-            ) : (
-              <ResponsiveContainer width="100%" height={280}>
-                <BarChart data={leaveStats} barGap={6} barCategoryGap={18}>
-                  <XAxis dataKey="username" tick={{ fill: '#b3b8c5', fontSize: 13 }} axisLine={{ stroke: '#222a3a' }} tickLine={false} />
-                  <YAxis tick={{ fill: '#b3b8c5', fontSize: 13 }} axisLine={{ stroke: '#222a3a' }} tickLine={false} grid={{ stroke: '#222a3a', strokeDasharray: '3 3' }} />
-                  <Tooltip
-                    contentStyle={{ background: '#181f2e', border: 'none', borderRadius: 10, color: '#fff' }}
-                    labelStyle={{ color: '#2f80ed', fontWeight: 'bold' }}
-                    itemStyle={{ color: '#fff' }}
-                    cursor={{ fill: '#222a3a', opacity: 0.2 }}
-                  />
-                  <Legend iconType="circle" wrapperStyle={{ color: '#b3b8c5', fontSize: 13 }} />
-                  <Bar dataKey="days_taken" stackId="a" fill="#2f80ed" radius={[8, 8, 0, 0]} />
-                  <Bar dataKey="days_pending" stackId="a" fill="#f2994a" radius={[8, 8, 0, 0]} />
-                  <Bar dataKey="limit_exceed" stackId="a" fill="#eb5757" radius={[8, 8, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            )}
+          <div className="chart-card small" style={{ background: '#101c2c', marginBottom: 24, minHeight: 585, marginTop: 2, position: 'relative' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
+              <h3 style={{ margin: 0 }}>Leave History</h3>
+              <button
+                style={{
+                  background: '#2f80ed',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: 6,
+                  padding: '7px 18px',
+                  fontWeight: 600,
+                  fontSize: 15,
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 8px #0002'
+                }}
+                onClick={() => window.location.href = '/leavemanagement/leaves'}
+              >
+                Apply
+              </button>
+            </div>
+            <div style={{ overflowX: 'auto', marginBottom: 16 }}>
+              {leaveHistory.length === 0 && leaveHistoryLoading ? (
+                <div className="placeholder">Loading...</div>
+              ) : leaveHistory.length === 0 ? (
+                <div className="placeholder">No leave data</div>
+              ) : (
+                <table style={{ width: '100%', borderCollapse: 'collapse', color: '#b3b8c5' }}>
+                  <thead>
+                    <tr style={{ background: '#181f2e' }}>
+                      <th style={{ padding: '10px 16px', textAlign: 'left' }}>User</th>
+                      <th style={{ padding: '10px 16px', textAlign: 'left' }}>Type</th>
+                      <th style={{ padding: '10px 16px', textAlign: 'left' }}>Start Date</th>
+                      <th style={{ padding: '10px 16px', textAlign: 'left' }}>End Date</th>
+                      <th style={{ padding: '10px 16px', textAlign: 'left' }}>Reason</th>
+                      <th style={{ padding: '10px 16px', textAlign: 'left' }}>Status</th>
+                      <th style={{ padding: '10px 16px', textAlign: 'left' }}>Approver</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {leaveHistory.map(row => (
+                      <tr key={row.id} style={{ borderBottom: '1px solid #222a3a' }}>
+                        <td style={{ padding: '10px 16px' }}>{row.user_name}</td>
+                        <td style={{ padding: '10px 16px' }}>{row.leave_type}</td>
+                        <td style={{ padding: '10px 16px' }}>{row.start_date ? new Date(row.start_date).toLocaleDateString() : ''}</td>
+                        <td style={{ padding: '10px 16px' }}>{row.end_date ? new Date(row.end_date).toLocaleDateString() : ''}</td>
+                        <td style={{ padding: '10px 16px' }}>{row.reason}</td>
+                        <td style={{ padding: '10px 16px' }}>{row.status}</td>
+                        <td style={{ padding: '10px 16px' }}>{row.approver_name}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
           </div>
         </div>
 
         {/* RIGHT: Both Graphs stacked vertically */}
-        <div style={{ flex: 2, minWidth: 480, maxWidth: 800, display: 'flex', flexDirection: 'column', gap: 24 }}>
+        <div style={{ flex: 2, minWidth: 480, maxWidth: 620, display: 'flex', flexDirection: 'column', gap: 7 }}>
           {/* Late Arrival Chart */}
           <div className="chart-card small" style={{ background: '#101c2c', maxWidth: 720, margin: '0 auto', width: '100%' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
@@ -316,7 +370,7 @@ const Userdashboard = () => {
             {loginDataFiltered.length === 0 ? (
               <div className="placeholder">No login data</div>
             ) : (
-              <ResponsiveContainer width="99%" height={260}>
+              <ResponsiveContainer width="99%" height={200}>
                 <LineChart data={loginDataFiltered} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
                   <XAxis
                     dataKey="date"
@@ -401,7 +455,7 @@ const Userdashboard = () => {
             {logoutDataFiltered.length === 0 ? (
               <div className="placeholder">No logout data</div>
             ) : (
-              <ResponsiveContainer width="99%" height={260}>
+              <ResponsiveContainer width="99%" height={200}>
                 <LineChart data={logoutDataFiltered} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
                   <XAxis
                     dataKey="date"

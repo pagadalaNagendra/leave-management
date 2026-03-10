@@ -217,16 +217,6 @@ const Dashboard = () => {
 
       {/* TOP WIDGETS */}
       <div className="top-widgets">
-
-        <div className="time-card">
-          <FiSun className="time-icon" />
-          <div className="time">{formatTime(currentTime)}</div>
-          <div className="subtle">Realtime Insight</div>
-
-          <div className="today-label">Today:</div>
-          <div className="date">{formatDate(currentTime)}</div>
-        </div>
-
         <div className="stats-grid">
           <div className="stat-card">
             <div>

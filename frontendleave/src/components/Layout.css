@@ -1,8 +1,26 @@
 .layout {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  background-color: #f5f7fa;
+  background-color: #FFFFFF;
+}
+
+/* Table background and text color override */
+table,
+.attendance-table,
+.leaves-table,
+.users-table {
+  background-color: #FFFFFF !important;
+  color: #000 !important;
+}
+
+table th,
+table td,
+.attendance-table th,
+.attendance-table td,
+.leaves-table th,
+.leaves-table td,
+.users-table th,
+.users-table td {
+  background-color: #FFFFFF !important;
+  color: #000 !important;
 }
 
 /* Top Navbar */
@@ -166,7 +184,7 @@
   font-size: 0.95rem;
   display: flex;
   align-items: center;
- 
+
   justify-content: space-between;
 }
 

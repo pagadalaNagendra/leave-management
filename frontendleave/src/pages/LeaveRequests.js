@@ -295,7 +295,7 @@ const LeaveRequests = () => {
 
         // Create worksheet
         const ws = XLSX.utils.json_to_sheet(excelData);
-        
+
         // Set column widths
         ws['!cols'] = [
             { wch: 25 }, // Employee
@@ -475,7 +475,7 @@ const LeaveRequests = () => {
                                                     </svg>
                                                 </button>
                                             )}
-                                            
+
                                             {(user.role === 'user' && user.id === leave.user_id && leave.status === 'pending') && (
                                                 <button
                                                     onClick={() => handleDelete(leave.id)}
@@ -490,7 +490,7 @@ const LeaveRequests = () => {
                                                     </svg>
                                                 </button>
                                             )}
-                                            
+
                                             {(user.role === 'sysadmin') && (
                                                 <button
                                                     onClick={() => handleDelete(leave.id)}

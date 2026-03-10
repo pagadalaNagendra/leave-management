@@ -28,6 +28,7 @@ export const userAPI = {
 export const dashboardAPI = {
   getStats: () => api.get('/dashboard/stats'),
   getUserSummary: () => api.get('/dashboard/user-summary'),
+  getUserDashboardSummary: () => api.get('/dashboard/user-dashboard-summary'),
   getUserLeaveStats: (year) => api.get(`/dashboard/user-leave-stats?year=${year}`),
   getLeaveTrends: (year) => api.get(`/dashboard/leave-trends?year=${year}`),
   getLeaveTypeDistribution: (year) => api.get(`/dashboard/leave-type-distribution?year=${year}`),
